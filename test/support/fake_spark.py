@@ -41,6 +41,9 @@ class Frame:
     def count(self):
         return len(self.rows)
 
+    def createOrReplaceTempView(self, name):
+        self.view = name
+
 
 functions = types.SimpleNamespace(
     expr=lambda sql: Expr('expr', sql),
@@ -61,7 +64,19 @@ sys.modules.update({'pyspark': pyspark, 'pyspark.sql': sql,
                     'pyspark.sql.functions': functions})
 
 
-def run(source, function, rows, failing, row_count):
-    namespace = {}
+class Session:
+    """Returns a preset single value per query after ${table} substitution."""
+
+    def __init__(self, results):
+        self.results, self.queries = results, []
+
+    def sql(self, query):
+        self.queries.append(query)
+        value = self.results[query]
+        return types.SimpleNamespace(collect=lambda: [(value,)])
+
+
+def run(source, function, rows, failing, row_count, sql_results=None):
+    namespace = {'spark': Session(sql_results or {})}
     exec(compile(source, 'notebook.py', 'exec'), namespace)
     return namespace[function](Frame(rows, failing), row_count)

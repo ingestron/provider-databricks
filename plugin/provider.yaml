@@ -1,6 +1,6 @@
 apiVersion: ingestron.provider/v1
 id: databricks-native
-version: 3.4.0
+version: 3.5.0
 platform: databricks
 renderer:
   apiVersion: ingestron.provider-generation/v1
@@ -39,16 +39,23 @@ quality:
         invalidValues: at-load
         duplicateValues: at-load
         rowCount: at-load
+      sql: at-load
+      engines:
+        databricks: at-load
     change-feed-with-history@v1:
       library:
         nullValues: at-load
         missingValues: at-load
         invalidValues: at-load
+      engines:
+        databricks: at-load
     append-only@v1:
       library:
         nullValues: at-load
         missingValues: at-load
         invalidValues: at-load
+      engines:
+        databricks: at-load
 planner:
   apiVersion: ingestron.provider-planning/v1
   module: ./index.mjs

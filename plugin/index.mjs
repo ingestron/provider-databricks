@@ -25797,10 +25797,46 @@ var ROW_LEVEL = /* @__PURE__ */ new Set(["nullValues", "missingValues", "invalid
 var fail = (message) => {
   throw new Error(message);
 };
+function sqlShape(id2, text, kind2) {
+  const stripped = String(text).replace(/'(?:[^'\\]|\\.|'')*'/g, "''").replace(/`[^`]*`/g, "``").replace(/"[^"]*"/g, '""');
+  if (/--|\/\*|;/.test(stripped))
+    fail(`${id2}: ${kind2} must be one statement without comments or semicolons`);
+  if (/\b(INSERT|UPDATE|DELETE|MERGE|DROP|CREATE|ALTER|TRUNCATE|GRANT|REVOKE|EXEC|EXECUTE|CALL|USE|SET|OPTIMIZE|VACUUM|COPY|REFRESH|CACHE|UNCACHE|INTO|RESTORE|MSCK|LOAD)\b/i.test(
+    stripped
+  ))
+    fail(`${id2}: ${kind2} must only read data`);
+  if (kind2 === "query" && !/^\s*(SELECT|WITH)\b/i.test(stripped))
+    fail(`${id2}: a sql rule query must start with SELECT or WITH`);
+  if (kind2 === "predicate" && /\bSELECT\b/i.test(stripped))
+    fail(`${id2}: a databricks rule is a row predicate without subqueries`);
+  return text;
+}
 function parse3(rule, table, column) {
-  if (!rule || typeof rule !== "object" || (rule.type ?? "library") !== "library")
-    return void 0;
+  if (!rule || typeof rule !== "object") return void 0;
+  const type = rule.type ?? "library";
   const where = table + (column ? "." + column : "");
+  const outcome = /^error$/i.test(String(rule.severity ?? "")) ? "fail" : "warn";
+  if (type === "sql" || type === "custom") {
+    const present2 = OPERATORS.filter((o) => rule[o] !== void 0);
+    if (type === "sql" && present2.length !== 1)
+      fail(`${where}: a sql rule needs exactly one comparison`);
+    return {
+      id: String(rule.id ?? `${where}.${type === "sql" ? "sql" : rule.engine}`),
+      table,
+      ...column ? { column } : {},
+      metric: type,
+      ...type === "sql" ? {
+        query: rule.query,
+        operator: present2[0],
+        threshold: rule[present2[0]]
+      } : { engine: rule.engine, implementation: rule.implementation },
+      arguments: {},
+      unit: "rows",
+      outcome,
+      source: "contract"
+    };
+  }
+  if (type !== "library") return void 0;
   if (!METRICS.includes(rule.metric))
     fail(`${where}: unsupported library metric ${rule.metric}`);
   const present = OPERATORS.filter((o) => rule[o] !== void 0);
@@ -25815,7 +25851,7 @@ function parse3(rule, table, column) {
     threshold: rule[present[0]],
     arguments: rule.arguments ?? {},
     unit: rule.unit ?? "rows",
-    outcome: /^error$/i.test(String(rule.severity ?? "")) ? "fail" : "warn",
+    outcome,
     source: "contract"
   };
 }
@@ -25907,6 +25943,42 @@ function qualityChecks(contract, columns, standard) {
   const checks = [];
   for (const rule of contractRules(contract)) {
     if (rule.source === "primary-key") continue;
+    if (rule.metric === "custom") {
+      if (rule.engine !== "databricks") continue;
+      if (typeof rule.implementation !== "string")
+        fail(
+          `${rule.id}: a databricks rule implementation is a SQL predicate string`
+        );
+      checks.push({
+        id: rule.id,
+        name: constraint(rule.id, used),
+        metric: "predicate",
+        outcome: rule.outcome,
+        expression: sqlShape(rule.id, rule.implementation, "predicate"),
+        operator: "mustBe",
+        threshold: 0,
+        unit: "rows"
+      });
+      continue;
+    }
+    if (rule.metric === "sql") {
+      if (!snapshot) continue;
+      sqlShape(rule.id, rule.query, "query");
+      checks.push({
+        id: rule.id,
+        name: constraint(rule.id, used),
+        metric: "sql",
+        outcome: rule.outcome,
+        query: rule.query.replaceAll(
+          "${column}",
+          rule.column ? "`" + column(rule, rule.column).name + "`" : "${column}"
+        ),
+        operator: rule.operator,
+        threshold: rule.threshold,
+        unit: "rows"
+      });
+      continue;
+    }
     const zero = rule.operator === "mustBe" && rule.threshold === 0;
     if (!snapshot) {
       if (!ROW_LEVEL.has(rule.metric)) continue;

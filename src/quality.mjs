@@ -24,18 +24,63 @@ const OPERATORS = [
   "mustNotBeBetween",
 ];
 const ROW_LEVEL = new Set(["nullValues", "missingValues", "invalidValues"]);
+// Contract rules of other types (sql, custom, text) are parsed below; only library
+// metrics use METRICS.
 const fail = (message) => {
   throw new Error(message);
 };
 
-function parse(rule, table, column) {
+/** Offline shape check; the platform compiles the SQL when the check runs. */
+export function sqlShape(id, text, kind) {
+  const stripped = String(text)
+    .replace(/'(?:[^'\\]|\\.|'')*'/g, "''")
+    .replace(/`[^`]*`/g, "``")
+    .replace(/"[^"]*"/g, '""');
+  if (/--|\/\*|;/.test(stripped))
+    fail(`${id}: ${kind} must be one statement without comments or semicolons`);
   if (
-    !rule ||
-    typeof rule !== "object" ||
-    (rule.type ?? "library") !== "library"
+    /\b(INSERT|UPDATE|DELETE|MERGE|DROP|CREATE|ALTER|TRUNCATE|GRANT|REVOKE|EXEC|EXECUTE|CALL|USE|SET|OPTIMIZE|VACUUM|COPY|REFRESH|CACHE|UNCACHE|INTO|RESTORE|MSCK|LOAD)\b/i.test(
+      stripped,
+    )
   )
-    return undefined;
+    fail(`${id}: ${kind} must only read data`);
+  if (kind === "query" && !/^\s*(SELECT|WITH)\b/i.test(stripped))
+    fail(`${id}: a sql rule query must start with SELECT or WITH`);
+  if (kind === "predicate" && /\bSELECT\b/i.test(stripped))
+    fail(`${id}: a databricks rule is a row predicate without subqueries`);
+  return text;
+}
+
+function parse(rule, table, column) {
+  if (!rule || typeof rule !== "object") return undefined;
+  const type = rule.type ?? "library";
   const where = table + (column ? "." + column : "");
+  const outcome = /^error$/i.test(String(rule.severity ?? ""))
+    ? "fail"
+    : "warn";
+  if (type === "sql" || type === "custom") {
+    const present = OPERATORS.filter((o) => rule[o] !== undefined);
+    if (type === "sql" && present.length !== 1)
+      fail(`${where}: a sql rule needs exactly one comparison`);
+    return {
+      id: String(rule.id ?? `${where}.${type === "sql" ? "sql" : rule.engine}`),
+      table,
+      ...(column ? { column } : {}),
+      metric: type,
+      ...(type === "sql"
+        ? {
+            query: rule.query,
+            operator: present[0],
+            threshold: rule[present[0]],
+          }
+        : { engine: rule.engine, implementation: rule.implementation }),
+      arguments: {},
+      unit: "rows",
+      outcome,
+      source: "contract",
+    };
+  }
+  if (type !== "library") return undefined;
   if (!METRICS.includes(rule.metric))
     fail(`${where}: unsupported library metric ${rule.metric}`);
   const present = OPERATORS.filter((o) => rule[o] !== undefined);
@@ -50,7 +95,7 @@ function parse(rule, table, column) {
     threshold: rule[present[0]],
     arguments: rule.arguments ?? {},
     unit: rule.unit ?? "rows",
-    outcome: /^error$/i.test(String(rule.severity ?? "")) ? "fail" : "warn",
+    outcome,
     source: "contract",
   };
 }
@@ -176,6 +221,46 @@ export function qualityChecks(contract, columns, standard) {
   for (const rule of contractRules(contract)) {
     // Keys are already required and, for snapshots, checked unique.
     if (rule.source === "primary-key") continue;
+    if (rule.metric === "custom") {
+      // Databricks engine rules are Spark SQL row predicates; other engines are
+      // reported as not enforced.
+      if (rule.engine !== "databricks") continue;
+      if (typeof rule.implementation !== "string")
+        fail(
+          `${rule.id}: a databricks rule implementation is a SQL predicate string`,
+        );
+      checks.push({
+        id: rule.id,
+        name: constraint(rule.id, used),
+        metric: "predicate",
+        outcome: rule.outcome,
+        expression: sqlShape(rule.id, rule.implementation, "predicate"),
+        operator: "mustBe",
+        threshold: 0,
+        unit: "rows",
+      });
+      continue;
+    }
+    if (rule.metric === "sql") {
+      if (!snapshot) continue; // reported as not enforced on streaming tables
+      sqlShape(rule.id, rule.query, "query");
+      checks.push({
+        id: rule.id,
+        name: constraint(rule.id, used),
+        metric: "sql",
+        outcome: rule.outcome,
+        query: rule.query.replaceAll(
+          "${column}",
+          rule.column
+            ? "`" + column(rule, rule.column).name + "`"
+            : "${column}",
+        ),
+        operator: rule.operator,
+        threshold: rule.threshold,
+        unit: "rows",
+      });
+      continue;
+    }
     const zero = rule.operator === "mustBe" && rule.threshold === 0;
     if (!snapshot) {
       if (!ROW_LEVEL.has(rule.metric)) continue; // reported as not enforced

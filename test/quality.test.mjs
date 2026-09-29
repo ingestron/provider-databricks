@@ -265,3 +265,139 @@ except ValueError as error:
   );
   assert.doesNotMatch(failed, /secret-value/);
 });
+
+test("sql rules run on snapshots and databricks predicates become expectations", () => {
+  const value = contract({
+    quality: [
+      {
+        id: "no-negative",
+        type: "sql",
+        query: "SELECT COUNT(*) FROM ${table} WHERE amount < 0",
+        mustBe: 0,
+        severity: "error",
+      },
+      {
+        id: "dq-positive",
+        type: "custom",
+        engine: "databricks",
+        implementation: "amount IS NULL OR amount >= 0",
+        severity: "error",
+      },
+      { id: "soda-check", type: "custom", engine: "soda", implementation: {} },
+    ],
+  });
+  value.schema[0].properties[1].quality.push({
+    id: "status-short",
+    type: "sql",
+    query: "SELECT MAX(LENGTH(${column})) FROM ${table}",
+    mustBeLessOrEqualTo: 10,
+  });
+  const snapshot = expandFor("snapshot-with-history@v1", value).with.quality;
+  const byId = Object.fromEntries(snapshot.map((q) => [q.id, q]));
+  assert.equal(
+    byId["status-short"].query,
+    "SELECT MAX(LENGTH(`status`)) FROM ${table}",
+  );
+  assert.equal(byId["dq-positive"].metric, "predicate");
+  assert.equal(byId["soda-check"], undefined);
+  const streaming = expandFor("append-only@v1", value);
+  assert.deepEqual(
+    streaming.with.quality.map((q) => q.id),
+    ["dq-positive", "status-valid", "status-present"],
+  );
+  const sql = render(plan("append-only@v1", streaming))[
+    "pipelines/sales/orders.sql"
+  ].value;
+  assert.match(
+    sql,
+    /CONSTRAINT q_dq_positive EXPECT \(amount IS NULL OR amount >= 0\) ON VIOLATION FAIL UPDATE/,
+  );
+  const code = render(
+    plan(
+      "snapshot-with-history@v1",
+      expandFor("snapshot-with-history@v1", value),
+    ),
+  )
+    ["pipelines/sales/orders.ipynb"].value.cells.at(-1)
+    .source.join("");
+  assert.match(
+    code,
+    /spark\.sql\(rule\["query"\]\.replace\("\$\{table\}", view\)\)/,
+  );
+});
+
+test("sql and predicate text is checked offline for a single read-only statement", () => {
+  for (const [rule, message] of [
+    [{ type: "sql", query: "SELECT 1; DROP TABLE x", mustBe: 1 }, /semicolons/],
+    [{ type: "sql", query: "DELETE FROM ${table}", mustBe: 0 }, /only read/],
+    [{ type: "sql", query: "SELECT 1 -- hidden", mustBe: 1 }, /comments/],
+    [{ type: "sql", query: "VALUES (1)", mustBe: 1 }, /SELECT or WITH/],
+    [
+      {
+        type: "custom",
+        engine: "databricks",
+        implementation: "id IN (SELECT id FROM t)",
+      },
+      /without subqueries/,
+    ],
+  ])
+    assert.throws(
+      () =>
+        expandFor("snapshot-with-history@v1", contract({ quality: [rule] })),
+      message,
+    );
+  assert.doesNotThrow(() =>
+    expandFor(
+      "snapshot-with-history@v1",
+      contract({
+        quality: [
+          {
+            type: "sql",
+            query:
+              "SELECT COUNT(*) FROM ${table} WHERE status = 'drop; -- update'",
+            mustBe: 0,
+          },
+        ],
+      }),
+    ),
+  );
+});
+
+test("the snapshot evaluator runs sql rules against the delivered snapshot view", () => {
+  const value = contract({
+    quality: [
+      {
+        id: "no-negative",
+        type: "sql",
+        query: "SELECT COUNT(*) FROM ${table} WHERE amount < 0",
+        mustBe: 0,
+        severity: "error",
+      },
+    ],
+  });
+  value.schema[0].properties[1].quality = [];
+  const step = expandFor("snapshot-with-history@v1", value);
+  const code = render(plan("snapshot-with-history@v1", step))
+    ["pipelines/sales/orders.ipynb"].value.cells.at(-1)
+    .source.join("");
+  const view = "ingestron_quality_sales_orders_ingest_orders";
+  const script = `
+import sys
+sys.path.insert(0, "test/support")
+import fake_spark
+try:
+    fake_spark.run(sys.stdin.read(), "check_sales_orders_ingest_orders_quality", [{"order_id": 1}], {}, 1,
+                   {"SELECT COUNT(*) FROM ${view} WHERE amount < 0": 2})
+    print("PASSED")
+except ValueError as error:
+    print("FAILED", error)
+`;
+  const output = execFileSync("python3", ["-c", script], {
+    input: code,
+    encoding: "utf8",
+  });
+  assert.match(
+    output,
+    /FAILED Contract quality rules failed; snapshot not applied: no-negative \(2\)/,
+  );
+});

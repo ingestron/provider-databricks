@@ -1,6 +1,7 @@
 # Complete snapshots only. The source owner publishes a delivery index atomically.
 # Snapshot versions are increasing integers; all retained entries remain immutable.
 import json
+from decimal import Decimal
 from datetime import datetime, timezone
 from pyspark import pipelines as dp
 from pyspark.sql import functions as F
@@ -95,7 +96,15 @@ def check_{{ function }}_quality(data, rows, rules=QUALITY):
     results = []
     for rule in rules:
         metric = rule["metric"]
-        if metric == "rowCount":
+        if metric == "sql":
+            # ${table} is this delivered snapshot, before it is applied.
+            view = "ingestron_quality_{{ function }}"
+            data.createOrReplaceTempView(view)
+            result = spark.sql(rule["query"].replace("${table}", view)).collect()
+            if len(result) != 1 or len(result[0]) != 1 or not isinstance(result[0][0], (int, float, Decimal)) or isinstance(result[0][0], bool):
+                raise ValueError("Contract sql rule must return one numeric value: " + rule["id"])
+            value = float(result[0][0]) if isinstance(result[0][0], Decimal) else result[0][0]
+        elif metric == "rowCount":
             value = rows
         elif metric == "duplicateValues":
             columns = [rule["column"]] if "column" in rule else rule["properties"]
