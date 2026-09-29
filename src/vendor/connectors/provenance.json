@@ -1,0 +1,18 @@
+{
+  "repository": "ingestron/connectors",
+  "sourceCommit": "1f0c6adbb404b529b70b9271bbe76131900c364b",
+  "files": {
+    "shape.mjs": {
+      "sourcePath": "src/shape.mjs",
+      "sha256": "d492530ce5c4d1a2a52ad998585a497d22d20a2ac38efc514dea2a4ffe4c7425"
+    },
+    "connection-contract.mjs": {
+      "sourcePath": "src/connection-contract.mjs",
+      "sha256": "124cd06239db6fa31530c1b45ebb7b050bd755318112d5fa6bed7bba75a36703"
+    },
+    "connector-contract-export.mjs": {
+      "sourcePath": "src/connector-contract-export.mjs",
+      "sha256": "f0d81832e2051b17e4049d8dcb3f7cd1c47dcc21d478d6c14dfb7c17a7cff1a9"
+    }
+  }
+}

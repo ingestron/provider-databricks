@@ -1,0 +1,56 @@
+apiVersion: ingestron.activity/v1
+id: materialized-view
+version: 1.0.0
+description: Lakeflow declarative materialised view on published Delta tables
+platform: databricks
+input: relation
+output: relation
+effect: commit
+optionsSchema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  properties:
+    sqlFile:
+      type: string
+    pipelineId:
+      type: string
+      pattern: ^[A-Za-z0-9_-]+$
+    targetTable:
+      type: string
+      pattern: ^[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*$
+    sources:
+      type: object
+      minProperties: 1
+      propertyNames:
+        pattern: ^[A-Za-z_][A-Za-z0-9_]*$
+      additionalProperties:
+        type: object
+        properties:
+          from:
+            type: string
+        required:
+          - from
+        additionalProperties: false
+    outputContract:
+      type: object
+  required:
+    - sqlFile
+    - pipelineId
+    - targetTable
+    - sources
+  additionalProperties: false
+generator:
+  kind: native-notebook
+  entrypoint: generate
+  execution: lakeflow
+  persistence: durable
+requirements:
+  execution: databricks-lakeflow
+  features: []
+  evidence: offline
+templates:
+  - source: ./view.sql.j2
+    output: view.sql
+    format: sql
+dependencies: {}
+capabilities: []

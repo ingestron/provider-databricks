@@ -1,0 +1,22 @@
+-- Source includes baseline rows and full-row I/U/D events. Missing rows are not deletes.
+CREATE OR REFRESH PRIVATE STREAMING TABLE {{ staging }} (
+  CONSTRAINT source_schema EXPECT (_rescued_data IS NULL) ON VIOLATION FAIL UPDATE,
+  CONSTRAINT operation_valid EXPECT ({{ operation }} IN ('I', 'U', 'D')) ON VIOLATION FAIL UPDATE{% for rule in rules %},
+  CONSTRAINT {{ rule.name }} EXPECT ({{ rule.expression }}) ON VIOLATION FAIL UPDATE{% endfor %}
+)
+AS SELECT {{ columns }}, _rescued_data
+FROM STREAM read_files({{ path }}, format => {{ format }}, schema => {{ ddl }},
+  schemaEvolutionMode => 'rescue', rescuedDataColumn => '_rescued_data');
+
+CREATE OR REFRESH STREAMING TABLE {{ history }};
+CREATE FLOW {{ flow_name }} AS AUTO CDC INTO {{ history }}
+FROM STREAM({{ staging }})
+KEYS ({{ keys }})
+APPLY AS DELETE WHEN {{ operation }} = 'D'
+SEQUENCE BY {{ sequence }}
+COLUMNS * EXCEPT ({{ operation }}, {{ sequence_columns }}, _rescued_data)
+STORED AS SCD TYPE 2{% if tracked %}
+TRACK HISTORY ON ({{ tracked }}){% endif %};
+
+CREATE OR REFRESH MATERIALIZED VIEW {{ current }} AS
+SELECT {{ business_columns }} FROM {{ history }} WHERE __END_AT IS NULL;

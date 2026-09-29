@@ -1,0 +1,375 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Databricks declarative provider configuration",
+  "type": "object",
+  "properties": {
+    "deployment": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "enum": ["development", "production"]
+        },
+        "rootPath": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^/Workspace/"
+        },
+        "runAs": {
+          "type": "object",
+          "properties": {
+            "user_name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "service_principal_name": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [],
+          "additionalProperties": false,
+          "oneOf": [
+            {
+              "required": ["user_name"]
+            },
+            {
+              "required": ["service_principal_name"]
+            }
+          ]
+        },
+        "job": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "permissions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "user_name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "group_name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "service_principal_name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "level": {
+                    "enum": ["CAN_VIEW", "CAN_MANAGE_RUN", "CAN_MANAGE"]
+                  }
+                },
+                "required": ["level"],
+                "additionalProperties": false,
+                "oneOf": [
+                  {
+                    "required": ["user_name"]
+                  },
+                  {
+                    "required": ["group_name"]
+                  },
+                  {
+                    "required": ["service_principal_name"]
+                  }
+                ]
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "notifications": {
+              "type": "object",
+              "properties": {
+                "on_failure": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "format": "email"
+                  },
+                  "minItems": 1,
+                  "uniqueItems": true
+                },
+                "on_success": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "format": "email"
+                  },
+                  "minItems": 1,
+                  "uniqueItems": true
+                },
+                "on_start": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "format": "email"
+                  },
+                  "minItems": 1,
+                  "uniqueItems": true
+                },
+                "on_duration_warning_threshold_exceeded": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "format": "email"
+                  },
+                  "minItems": 1,
+                  "uniqueItems": true
+                },
+                "no_alert_for_skipped_runs": {
+                  "type": "boolean"
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            },
+            "timeoutSeconds": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "durationWarningSeconds": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "maxRetries": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10
+            },
+            "retryIntervalSeconds": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "schedule": {
+              "type": "object",
+              "properties": {
+                "quartz_cron_expression": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^\\S+( +\\S+){5,6}$"
+                },
+                "timezone_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "pause_status": {
+                  "enum": ["PAUSED", "UNPAUSED"]
+                }
+              },
+              "required": [
+                "quartz_cron_expression",
+                "timezone_id",
+                "pause_status"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        },
+        "pipelines": {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[A-Za-z_][A-Za-z0-9_-]*$"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "ownership": {
+                "enum": ["managed", "adopt", "external"]
+              },
+              "existingId": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9_-]+$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "schema": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+              },
+              "runAs": {
+                "type": "object",
+                "properties": {
+                  "user_name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "service_principal_name": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [],
+                "additionalProperties": false,
+                "oneOf": [
+                  {
+                    "required": ["user_name"]
+                  },
+                  {
+                    "required": ["service_principal_name"]
+                  }
+                ]
+              },
+              "permissions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "user_name": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "group_name": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "service_principal_name": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "level": {
+                      "enum": ["CAN_VIEW", "CAN_RUN", "CAN_MANAGE"]
+                    }
+                  },
+                  "required": ["level"],
+                  "additionalProperties": false,
+                  "oneOf": [
+                    {
+                      "required": ["user_name"]
+                    },
+                    {
+                      "required": ["group_name"]
+                    },
+                    {
+                      "required": ["service_principal_name"]
+                    }
+                  ]
+                },
+                "minItems": 1,
+                "uniqueItems": true
+              },
+              "notifications": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "alerts": {
+                      "type": "array",
+                      "items": {
+                        "enum": [
+                          "on-update-success",
+                          "on-update-failure",
+                          "on-update-fatal-failure",
+                          "on-flow-failure"
+                        ]
+                      },
+                      "minItems": 1,
+                      "uniqueItems": true
+                    },
+                    "email_recipients": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "format": "email"
+                      },
+                      "minItems": 1,
+                      "uniqueItems": true
+                    }
+                  },
+                  "required": ["alerts", "email_recipients"],
+                  "additionalProperties": false
+                },
+                "minItems": 1,
+                "uniqueItems": true
+              },
+              "eventLog": {
+                "type": "object",
+                "properties": {
+                  "catalog": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+                  },
+                  "schema": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+                  }
+                },
+                "required": ["catalog", "schema", "name"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["ownership"],
+            "additionalProperties": false
+          }
+        },
+        "ci": {
+          "type": "object",
+          "properties": {
+            "provider": {
+              "const": "github"
+            },
+            "cliVersion": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+            }
+          },
+          "required": ["provider", "cliVersion"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["mode"],
+      "additionalProperties": false
+    },
+    "publication": {
+      "type": "object",
+      "properties": {
+        "workspaceRoot": {
+          "type": "string"
+        },
+        "existingClusterId": {
+          "type": "string"
+        },
+        "runAsServicePrincipal": {
+          "type": "string"
+        },
+        "permissions": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      },
+      "required": [
+        "workspaceRoot",
+        "existingClusterId",
+        "runAsServicePrincipal",
+        "permissions"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

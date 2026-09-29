@@ -1,0 +1,9 @@
+-- Immutable input files. Lakeflow owns checkpoints; no per-run full-table copies.
+-- Original-file retention is the source owner's responsibility.
+CREATE OR REFRESH STREAMING TABLE {{ current }} (
+  CONSTRAINT source_schema EXPECT (_rescued_data IS NULL) ON VIOLATION FAIL UPDATE{% for rule in rules %},
+  CONSTRAINT {{ rule.name }} EXPECT ({{ rule.expression }}) ON VIOLATION FAIL UPDATE{% endfor %}
+)
+AS SELECT {{ columns }}, _rescued_data
+FROM STREAM read_files({{ path }}, format => {{ format }}, schema => {{ ddl }},
+  schemaEvolutionMode => 'rescue', rescuedDataColumn => '_rescued_data');

@@ -1,0 +1,56 @@
+apiVersion: ingestron.activity/v1
+id: lakeflow-ingest-input
+version: 1.0.0
+description: Provider-owned ingestion standard using native Lakeflow state and expectations
+platform: databricks
+input: files
+output: relation
+effect: commit
+optionsSchema:
+  type: object
+  required: [standard, pipeline, target, source, retention, keys]
+  properties:
+    standard:
+      {
+        enum:
+          [
+            snapshot-with-history@v1,
+            change-feed-with-history@v1,
+            append-only@v1,
+          ],
+      }
+    pipeline: { type: string }
+    target: { type: object }
+    source: { type: object }
+    retention: { type: object }
+    contractVersion: { type: string }
+    freshness: { type: object }
+    snapshotPolicy: { type: object }
+    expectations: { type: object }
+    keys: { type: array, items: { type: string } }
+    sequenceBy: { type: array, items: { type: string } }
+    operationColumn: { type: string }
+    trackedColumns: { type: array, items: { type: string } }
+  additionalProperties: false
+generator:
+  kind: native-notebook
+  entrypoint: generate
+  execution: lakeflow
+  persistence: durable
+requirements:
+  execution: databricks-lakeflow
+  features: []
+  sourceKinds: [files, adls]
+  evidence: offline
+templates:
+  - source: ../lakeflow-ingest/append.sql.j2
+    output: append.sql
+    format: sql
+  - source: ../lakeflow-ingest/events.sql.j2
+    output: events.sql
+    format: sql
+  - source: ../lakeflow-ingest/snapshot.py.j2
+    output: snapshot.py
+    format: python
+dependencies: {}
+capabilities: []

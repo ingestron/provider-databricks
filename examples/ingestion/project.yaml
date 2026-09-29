@@ -1,0 +1,28 @@
+apiVersion: ingestron.project/v1
+id: retail
+providers:
+  packages:
+    dbx:
+      source: databricks
+      version: 2.1.0
+  configurations:
+    engineering:
+      package: dbx
+      binding: platform
+      options:
+        deployment: "{{values.deployment}}"
+defaults:
+  provider: engineering
+  naming:
+    table: "{{table.id}}"
+    job: "{{env}}_{{project.id}}_{{flow.id}}"
+environments:
+  dev:
+    $resolve: ./environments/dev.yaml
+  prod:
+    $resolve: ./environments/prod.yaml
+flows:
+  - $resolve: ./flows/01-snapshots/flow.yaml
+  - $resolve: ./flows/02-changes/flow.yaml
+  - $resolve: ./flows/03-events/flow.yaml
+  - $resolve: ./flows/04-reporting/flow.yaml

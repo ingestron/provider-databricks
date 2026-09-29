@@ -1,0 +1,66 @@
+# Synthetic identities and destinations: replace these with your existing resources.
+apiVersion: ingestron.environment/v1
+environment: prod
+values:
+  catalog: "{{env}}_{{project.id}}"
+  deployment:
+    mode: production
+    rootPath: /Workspace/Shared/retail/prod
+    runAs:
+      service_principal_name: retail-production-runner
+    job:
+      name: prod_retail_processing
+      permissions:
+        - group_name: retail-operators
+          level: CAN_MANAGE_RUN
+      notifications:
+        on_failure: [retail-operations@example.com]
+        on_duration_warning_threshold_exceeded: [retail-operations@example.com]
+      timeoutSeconds: 7200
+      durationWarningSeconds: 3600
+      maxRetries: 2
+      retryIntervalSeconds: 120
+      schedule:
+        quartz_cron_expression: "0 0 6 * * ?"
+        timezone_id: Pacific/Auckland
+        pause_status: PAUSED
+    pipelines:
+      erp:
+        ownership: managed
+        permissions: &pipeline_permissions
+          - group_name: retail-operators
+            level: CAN_RUN
+        notifications: &pipeline_notifications
+          - alerts:
+              [on-update-failure, on-update-fatal-failure, on-flow-failure]
+            email_recipients: [retail-operations@example.com]
+        eventLog:
+          catalog: "{{values.catalog}}"
+          schema: operations
+          name: erp_events
+      sales:
+        ownership: managed
+        permissions: *pipeline_permissions
+        notifications: *pipeline_notifications
+        eventLog:
+          catalog: "{{values.catalog}}"
+          schema: operations
+          name: sales_events
+      web:
+        ownership: managed
+        permissions: *pipeline_permissions
+        notifications: *pipeline_notifications
+        eventLog:
+          catalog: "{{values.catalog}}"
+          schema: operations
+          name: web_events
+    ci:
+      provider: github
+      cliVersion: 0.294.0
+bindings:
+  platform:
+    kind: databricks
+    host: https://adb-example.azuredatabricks.net
+    catalog: "{{values.catalog}}"
+  landed:
+    kind: adls

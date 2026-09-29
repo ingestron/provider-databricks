@@ -1,0 +1,33 @@
+apiVersion: ingestron.activity/v1
+id: snapshot-publish-input
+version: 1.0.0
+description: Verify a landed snapshot and conditionally publish its completed delivery index
+platform: databricks
+input: files
+output: files
+effect: commit
+optionsSchema:
+  type: object
+  required: [standard, credential, keys, contractVersion]
+  properties:
+    standard: { const: snapshot-publication@v1 }
+    credential: { type: object }
+    keys: { type: array, items: { type: string }, minItems: 1 }
+    contractVersion: { type: string }
+    allowEmpty: { type: boolean }
+    maximumDropPercent: { type: number, minimum: 0, maximum: 100 }
+  additionalProperties: false
+generator:
+  kind: native-notebook
+  entrypoint: publish
+  execution: batch
+  persistence: durable
+requirements:
+  execution: databricks-classic-spark
+  features: [azure-blob-conditional-write, existing-secret-scope]
+  sourceKinds: [adls]
+  evidence: offline
+templates:
+  - source: ../snapshot-publish/publication.py
+    output: publication.py
+    format: python

@@ -1,0 +1,91 @@
+apiVersion: ingestron.project/v1
+id: retail
+providers:
+  packages:
+    provider:
+      source: databricks
+      version: 2.1.0
+  configurations:
+    engineering:
+      package: provider
+      binding: engine
+      options:
+        publication:
+          workspaceRoot: /Workspace/Shared/retail_publication/{{env}}
+          existingClusterId: "{{values.clusterId}}"
+          runAsServicePrincipal: "{{values.publisherPrincipal}}"
+          permissions:
+            - group_name: data-engineers
+              level: CAN_MANAGE_RUN
+defaults:
+  provider: engineering
+environments:
+  dev:
+    apiVersion: ingestron.environment/v1
+    environment: dev
+    values:
+      storageAccount: retailsampledev
+      publisherNotebook: /Workspace/Shared/retail_publication/dev/files/notebooks/retail_source_customers
+      publisherPrincipal: retail-publisher-dev
+      clusterId: 0123-exampledev
+    bindings:
+      engine:
+        kind: databricks
+        host: https://example.invalid
+        catalog: retail_dev
+      files:
+        kind: adls
+  prod:
+    apiVersion: ingestron.environment/v1
+    environment: prod
+    values:
+      storageAccount: retailsampleprod
+      publisherNotebook: /Workspace/Shared/retail_publication/prod/files/notebooks/retail_source_customers
+      publisherPrincipal: retail-publisher-prod
+      clusterId: 0123-exampleprod
+    bindings:
+      engine:
+        kind: databricks
+        host: https://example.invalid
+        catalog: retail_prod
+      files:
+        kind: adls
+flows:
+  - apiVersion: ingestron.flow/v1
+    kind: ingestion
+    id: source
+    ingestion:
+      standard: snapshot-publication@v1
+      credential:
+        secretScope: retail_storage_{{env}}
+        tenantIdKey: tenant-id
+        clientIdKey: client-id
+        clientSecretKey: client-secret
+      maximumDropPercent: 50
+    defaults:
+      source:
+        binding: files
+        format: parquet
+        path: abfss://landing@{{values.storageAccount}}.dfs.core.windows.net/retail/source/{{table.id}}
+    tables:
+      customers:
+        contract:
+          apiVersion: v3.1.0
+          kind: DataContract
+          id: customers
+          name: customers
+          version: 1.0.0
+          status: draft
+          schema:
+            - name: customers
+              logicalType: object
+              physicalType: table
+              properties:
+                - name: id
+                  logicalType: integer
+                  physicalType: BIGINT
+                  required: true
+                  primaryKey: true
+                - name: name
+                  logicalType: string
+                  physicalType: STRING

@@ -1,0 +1,21 @@
+{
+  "cliVersion": "0.10.0",
+  "repository": "ingestron/provider-databricks",
+  "examples": [
+    {
+      "path": "examples/ingestion",
+      "environments": ["dev", "prod"],
+      "delivery": false
+    },
+    {
+      "path": "examples/snapshot-publication",
+      "environments": ["dev", "prod"],
+      "delivery": false
+    },
+    {
+      "path": "examples/snapshot-history-from-adf",
+      "environments": ["dev", "prod"],
+      "delivery": false
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+apiVersion: ingestron.flow/v1
+kind: transformation
+id: reporting
+requires:
+  customers:
+    dataset: retail.erp.customers.current
+    select:
+      mode: same-run
+steps:
+  - id: customers
+    uses: materialized-view@v1
+    with:
+      pipelineId: erp
+      targetTable: "{{values.catalog}}.reporting.customers"
+      sources:
+        customers:
+          from: requires.customers
+      sqlFile: ./customers.sql
+publishes:
+  customers:
+    from: steps.customers.outputs.result
+    contract:
+      $resolve: ../01-snapshots/customers/contract.yaml

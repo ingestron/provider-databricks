@@ -1,0 +1,31 @@
+apiVersion: ingestron.flow/v1
+kind: ingestion
+id: sales
+ingestion:
+  standard: change-feed-with-history@v1
+  pipeline: sales
+  target:
+    schema: sales_current
+    historySchema: sales_history
+  source:
+    delivery: change-events
+    deletes: explicit-events
+    baseline: included
+  retention:
+    sourceDeliveries: externally-retained
+    period: P90D
+defaults:
+  source:
+    binding: landed
+    format: parquet
+    path: /Volumes/{{values.catalog}}/landing/sales/{{table.id}}
+tables:
+  customers:
+    contract:
+      $resolve: ./customers/contract.yaml
+    ingestion:
+      keys:
+        - id
+      sequenceBy:
+        - change_sequence
+      operationColumn: operation

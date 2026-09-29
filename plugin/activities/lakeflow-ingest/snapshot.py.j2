@@ -1,0 +1,101 @@
+# Complete snapshots only. The source owner publishes a delivery index atomically.
+# Snapshot versions are increasing integers; all retained entries remain immutable.
+import json
+from datetime import datetime, timezone
+from pyspark import pipelines as dp
+from pyspark.sql import functions as F
+
+SOURCE_ROOT = {{ root }}
+DELIVERY_INDEX = {{ index }}
+SCHEMA = {{ schema }}
+KEYS = {{ keys }}
+
+
+def next_{{ function }}_snapshot(latest_version, source_root=SOURCE_ROOT, delivery_index=DELIVERY_INDEX, schema=SCHEMA, keys=KEYS):
+    rows = spark.read.option("wholetext", True).text(delivery_index).take(2)
+    if len(rows) != 1:
+        raise ValueError("Expected one completed delivery index JSON file")
+    index = json.loads(rows[0].value)
+    if index.get("apiVersion") != "ingestron.delivery-index/v1" or index.get("dataset") != {{ dataset }}:
+        raise ValueError("Delivery index version or dataset does not match this table")
+    deliveries = index.get("deliveries")
+    if not isinstance(deliveries, list) or not deliveries:
+        raise ValueError("Delivery index must contain completed snapshots")
+    policy = json.loads({{ policy }})
+    versions = set()
+    ids = set()
+    paths = set()
+    for item in deliveries:
+        if not isinstance(item, dict):
+            raise ValueError("Each delivery must be an object")
+        if not isinstance(item.get("contractVersion"), str) or not item["contractVersion"]:
+            raise ValueError("Delivery contractVersion is required")
+        try:
+            captured = datetime.fromisoformat(item["capturedAt"].replace("Z", "+00:00"))
+            if captured.tzinfo is None:
+                raise ValueError("Missing timezone")
+        except (KeyError, TypeError, AttributeError, ValueError) as error:
+            raise ValueError("Delivery capturedAt must be an ISO timestamp with timezone") from error
+        version = item.get("version")
+        if type(version) is not int or version < 0 or version > 9007199254740991 or version in versions:
+            raise ValueError("Snapshot versions must be unique non-negative integers")
+        if not isinstance(item.get("id"), str) or not item["id"] or item["id"] in ids:
+            raise ValueError("Snapshot delivery IDs must be unique and non-empty")
+        versions.add(version)
+        ids.add(item["id"])
+        if item.get("complete") is not True or item.get("scope") != "full-table":
+            raise ValueError("Refusing an incomplete or partial snapshot")
+        if type(item.get("rowCount")) is not int or item["rowCount"] < 0 or item["rowCount"] > 9007199254740991:
+            raise ValueError("A completed snapshot requires a non-negative rowCount")
+        if not isinstance(item.get("path"), str) or not item["path"].startswith(source_root + "/") or any(part in (".", "..") for part in item["path"].split("/")):
+            raise ValueError("Snapshot path must be inside the declared source root")
+        if item["path"] in paths:
+            raise ValueError("Snapshot paths must be immutable and unique per delivery")
+        paths.add(item["path"])
+    pending = sorted((x for x in deliveries if latest_version is None or x["version"] > latest_version), key=lambda x: x["version"])
+    newest = max(deliveries, key=lambda item: item["version"])
+    captured = datetime.fromisoformat(newest["capturedAt"].replace("Z", "+00:00"))
+    age_hours = (datetime.now(timezone.utc) - captured).total_seconds() / 3600
+    if age_hours < 0:
+        raise ValueError("Delivery capturedAt cannot be in the future")
+    if policy.get("maximumAgeHours") is not None and age_hours > policy["maximumAgeHours"]:
+        raise ValueError("Source delivery is stale; latest completed snapshot exceeds maximumAgeHours")
+    if not pending:
+        return None
+    delivery = pending[0]
+    if delivery["contractVersion"] != {{ contractVersion }}:
+        raise ValueError("Delivery contractVersion differs from the generated contract")
+    if delivery["rowCount"] == 0 and not policy.get("allowEmpty", False):
+        raise ValueError("Empty snapshot blocked; explicitly set snapshotPolicy.allowEmpty to expire all keys")
+    if delivery["rowCount"] < policy.get("minimumRows", 0):
+        raise ValueError("Snapshot rowCount is below minimumRows")
+    if latest_version is not None and policy.get("maximumDropPercent") is not None:
+        previous = next((item for item in deliveries if item["version"] == latest_version), None)
+        if previous is None:
+            raise ValueError("Retain the previous delivery index entry to check maximumDropPercent")
+        if previous["rowCount"] and 100 * (previous["rowCount"] - delivery["rowCount"]) / previous["rowCount"] > policy["maximumDropPercent"]:
+            raise ValueError("Snapshot row-count drop exceeds maximumDropPercent")
+    data = spark.read.format({{ format }}).schema(schema).option("mode", "FAILFAST").load(delivery["path"])
+    if data.count() != delivery["rowCount"]:
+        raise ValueError("Snapshot row count differs from the completed delivery")
+    # Failing checks must never drop rows: that would turn bad data into deletes.
+    if data.filter(F.expr({{ invalidPredicate }})).limit(1).count():
+        raise ValueError("Snapshot required-column or business expectation failed; no rows were discarded")
+    if data.groupBy(*keys).count().filter(F.col("count") > 1).limit(1).count():
+        raise ValueError("Snapshot keys are not unique")
+    return data, delivery["version"]
+
+
+dp.create_streaming_table(name={{ history }})
+dp.create_auto_cdc_from_snapshot_flow(
+    target={{ history }},
+    source=next_{{ function }}_snapshot,
+    keys=KEYS,
+    stored_as_scd_type=2{% if tracked %},
+    track_history_column_list={{ tracked }}{% endif %}
+)
+
+
+@dp.materialized_view(name={{ current }})
+def current_{{ function }}():
+    return spark.read.table({{ history }}).where("__END_AT IS NULL").select({{ select }})

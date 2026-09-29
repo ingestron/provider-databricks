@@ -1,0 +1,16 @@
+apiVersion: ingestron.environment/v1
+environment: dev
+values:
+  deployment:
+    mode: development
+    job:
+      timeoutSeconds: 3600
+      maxRetries: 2
+  catalog: "{{env}}_{{project.id}}"
+bindings:
+  platform:
+    kind: databricks
+    host: https://adb-example.azuredatabricks.net
+    catalog: "{{values.catalog}}"
+  landed:
+    kind: adls

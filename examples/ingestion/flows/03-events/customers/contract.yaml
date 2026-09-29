@@ -1,0 +1,19 @@
+apiVersion: v3.1.0
+kind: DataContract
+id: web_customers
+name: web_customers
+version: 1.0.0
+status: draft
+schema:
+  - name: web_customers
+    logicalType: object
+    physicalType: table
+    properties:
+      - name: id
+        logicalType: integer
+        physicalType: BIGINT
+        required: true
+        primaryKey: true
+      - name: name
+        logicalType: string
+        physicalType: STRING

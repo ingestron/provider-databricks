@@ -1,0 +1,33 @@
+apiVersion: ingestron.flow/v1
+kind: ingestion
+id: erp
+ingestion:
+  standard: snapshot-with-history@v1
+  pipeline: erp
+  snapshotPolicy:
+    allowEmpty: false
+    minimumRows: 1
+    maximumDropPercent: 25
+  target:
+    schema: erp_current
+    historySchema: erp_history
+  source:
+    delivery: complete-snapshot
+    deletes: missing-keys
+    scope: full-table
+  retention:
+    sourceDeliveries: externally-retained
+    period: P90D
+defaults:
+  source:
+    binding: landed
+    format: parquet
+    path: /Volumes/{{values.catalog}}/landing/erp/{{table.id}}
+    deliveryIndex: /Volumes/{{values.catalog}}/landing/erp/{{table.id}}/deliveries.json
+tables:
+  customers:
+    contract:
+      $resolve: ./customers/contract.yaml
+    ingestion:
+      keys:
+        - id

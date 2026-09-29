@@ -1,0 +1,267 @@
+apiVersion: ingestron.provider/v1
+id: databricks-native
+version: 3.2.0
+platform: databricks
+renderer:
+  apiVersion: ingestron.provider-generation/v1
+  module: ./index.mjs
+configurationSchema: ./configuration.schema.json
+activities:
+  snapshot-publish-input: ./activities/snapshot-publish-input/activity.yaml
+  lakeflow-ingest-input: ./activities/lakeflow-ingest-input/activity.yaml
+  snapshot-publish: ./activities/snapshot-publish/activity.yaml
+  lakeflow-ingest: ./activities/lakeflow-ingest/activity.yaml
+  materialized-view: ./activities/materialized-view/activity.yaml
+compatibility:
+  plan: ingestron.plan/v1
+  minimumCli: 4.2.0
+  requiredFeatures:
+    - native-project
+    - delivery-exports
+    - export-groups
+    - model-inputs
+    - extension-packs
+    - ingestion-presets
+    - relation-handovers
+    - project-connections
+    - odcs-connections
+    - connector-runtime-assets
+    - connector-runtime-capabilities
+    - project-assembly
+planner:
+  apiVersion: ingestron.provider-planning/v1
+  module: ./index.mjs
+standards:
+  - id: snapshot-with-history@v1
+    description: Complete versioned snapshots to native history and current view
+  - id: change-feed-with-history@v1
+    description: Baseline and full-row change events to history and current view
+  - id: append-only@v1
+    description: Immutable files to a streaming table
+  - id: snapshot-publication@v1
+    description: Verify immutable Parquet snapshots and conditionally publish an
+      ordered delivery index
+    sourceKinds:
+      - adls
+commands:
+  apiVersion: ingestron.provider-commands/v1
+  execution: offline-json
+  module: ./commands.mjs
+  definitions:
+    - name: discover import
+      description:
+        Review supplied table metadata as contract proposals; no source
+        connection or file changes.
+      inputSchema:
+        type: object
+        additionalProperties: false
+        required:
+          - tables
+        properties:
+          tables:
+            type: array
+            minItems: 1
+            maxItems: 100
+            items:
+              type: object
+              additionalProperties: false
+              required:
+                - name
+                - columns
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 128
+                columns:
+                  type: array
+                  minItems: 1
+                  maxItems: 500
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - name
+                      - type
+                      - nullable
+                    properties:
+                      name:
+                        type: string
+                        minLength: 1
+                        maxLength: 128
+                      type:
+                        type: string
+                        minLength: 1
+                        maxLength: 64
+                      nullable:
+                        type: boolean
+    - name: deploy inspect
+      description:
+        Inspect supplied native deployment assets; no live validation,
+        target diff or deployment.
+      inputSchema:
+        type: object
+        additionalProperties: false
+        required:
+          - artifact
+        properties:
+          artifact:
+            type: object
+    - name: connection prepare
+      description:
+        Prepare a driver-side connector job using locked source assets; no
+        workspace calls.
+      inputSchema:
+        type: object
+        additionalProperties: true
+    - name: connector contracts
+      description: Export reviewed ODCS contracts
+      inputSchema:
+        type: object
+        properties:
+          review:
+            type: object
+        required:
+          - review
+        additionalProperties: false
+    - name: project assemble
+      description: Assemble one scoped platform project without deployment
+      inputSchema:
+        type: object
+        additionalProperties: true
+lifecycle:
+  apiVersion: ingestron.provider-lifecycle/v1
+  module: ./lifecycle.mjs
+outputSchemas:
+  bundle: ./schemas/databricks-bundle.json
+capabilities:
+  artifactKinds:
+    - native-notebook
+    - file-project
+  delivery: true
+  handovers:
+    - files
+    - relation
+  packContracts:
+    snapshot-presets:
+      version: 1.0.0
+      activities:
+        - snapshot-publish
+        - lakeflow-ingest
+connectorRuntimes:
+  ingestron.snapshot/python/v1:
+    selectionSchema:
+      type: object
+      additionalProperties:
+        type: object
+        properties:
+          name:
+            type: string
+            minLength: 1
+          fields:
+            type: object
+            additionalProperties:
+              type: object
+              properties:
+                type:
+                  type: string
+                  enum:
+                    - integer
+                    - string
+                    - boolean
+                    - number
+                    - decimal
+                    - json
+                nullable:
+                  type: boolean
+                precision:
+                  type: integer
+                scale:
+                  type: integer
+              required:
+                - type
+                - nullable
+              additionalProperties: false
+        required:
+          - name
+          - fields
+        additionalProperties: false
+    executionSchema:
+      type: object
+      properties:
+        mode:
+          enum:
+            - databricks
+          type: string
+        existingClusterId:
+          type: string
+          minLength: 1
+        bundleDirectory:
+          type: string
+          minLength: 1
+        notebookPath:
+          type: string
+          minLength: 1
+        pythonExecutable:
+          type: string
+          minLength: 1
+        azure:
+          type: object
+          properties:
+            storageAccount:
+              type: string
+              minLength: 1
+            container:
+              type: string
+              minLength: 1
+            prefix:
+              type: string
+              minLength: 1
+            tenantId:
+              type: string
+              minLength: 1
+            clientId:
+              type: string
+              minLength: 1
+            clientSecretEnv:
+              type: string
+              minLength: 1
+          required:
+            - storageAccount
+            - container
+            - prefix
+            - tenantId
+            - clientId
+            - clientSecretEnv
+          additionalProperties: false
+        secrets:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              scope:
+                type: string
+                minLength: 1
+              key:
+                type: string
+                minLength: 1
+            required:
+              - scope
+              - key
+            additionalProperties: false
+      required:
+        - mode
+        - existingClusterId
+        - bundleDirectory
+        - notebookPath
+        - pythonExecutable
+        - azure
+        - secrets
+      additionalProperties: false
+    executionPlatforms:
+      - databricks
+    prepareCommand: connection prepare
+    contractsCommand: connector contracts
+projectAssembly:
+  apiVersion: ingestron.project-assembly/v1
+  command: project assemble

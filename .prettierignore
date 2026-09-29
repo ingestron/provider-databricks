@@ -1,0 +1,14 @@
+plugin/index.mjs
+node_modules/
+.venv/
+
+plugin/commands.mjs
+
+plugin/lifecycle.mjs
+plugin/schemas/
+
+src/schemas/
+
+
+plugin/connector-assets.mjs
+src/vendor/connectors/

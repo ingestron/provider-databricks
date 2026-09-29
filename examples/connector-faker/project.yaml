@@ -1,0 +1,107 @@
+apiVersion: ingestron.project/v1
+id: connector_faker
+providers:
+  packages:
+    faker:
+      source: faker
+      version: 0.3.0
+    local:
+      source: local
+      version: 0.1.0
+    databricks:
+      source: databricks
+      version: 3.0.0
+  configurations:
+    local:
+      package: local
+      binding: runtime
+    workspace:
+      package: databricks
+      binding: workspace
+defaults:
+  provider: local
+environments:
+  dev:
+    apiVersion: ingestron.environment/v1
+    environment: dev
+    bindings:
+      runtime:
+        kind: local
+      workspace:
+        kind: databricks
+        host: https://example.invalid
+        catalog: demo
+connections:
+  demo:
+    package: faker
+    sourceId: synthetic_users
+    tenantId: demo
+    settings:
+      count: 3
+      seed: 42
+      parallelism: 1
+flows:
+  - apiVersion: ingestron.flow/v1
+    kind: ingestion
+    id: users_local
+    provider: local
+    ingestion:
+      connection: demo
+      timeoutSeconds: 120
+      execution:
+        mode: local
+    tables:
+      users:
+        source:
+          stream: users
+        contract: &a1
+          apiVersion: v3.1.0
+          kind: DataContract
+          id: demo-users
+          name: Synthetic users
+          version: 1.0.0
+          status: draft
+          description:
+            purpose: Synthetic protocol and engine qualification. No real personal data.
+          schema:
+            - name: users
+              logicalType: object
+              physicalType: table
+              properties:
+                - name: id
+                  logicalType: integer
+                  physicalType: BIGINT
+                  required: true
+                - name: age
+                  logicalType: integer
+                  physicalType: BIGINT
+                  required: true
+  - apiVersion: ingestron.flow/v1
+    kind: ingestion
+    id: users_databricks
+    provider: workspace
+    ingestion:
+      connection: demo
+      timeoutSeconds: 120
+      execution:
+        mode: databricks
+        existingClusterId: 0123-example
+        bundleDirectory: /Workspace/Shared/ingestron/faker
+        notebookPath: /Workspace/Shared/ingestron/faker-job
+        pythonExecutable: /opt/ingestron/faker/bin/python
+        azure:
+          storageAccount: syntheticstore
+          container: landing
+          prefix: faker
+          tenantId: 00000000-0000-0000-0000-000000000001
+          clientId: 00000000-0000-0000-0000-000000000002
+          clientSecretEnv: INGESTRON_STORAGE_SECRET
+        secrets:
+          INGESTRON_STORAGE_SECRET:
+            scope: ingestron-demo
+            key: storage-client-secret
+    tables:
+      users:
+        source:
+          stream: users
+        contract: *a1

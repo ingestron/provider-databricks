@@ -1,0 +1,6 @@
+-- Domain transformation. Lakeflow resolves dataset dependencies.
+CREATE OR REFRESH MATERIALIZED VIEW {{ target }} AS
+{% if sources %}WITH {{ sources }}
+SELECT * FROM (
+{{ query }}
+) AS result{% else %}{{ query }}{% endif %};

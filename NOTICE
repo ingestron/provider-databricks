@@ -1,0 +1,16 @@
+Ingestron Databricks provider
+Copyright Otrera Limited.
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Third-party material keeps its own terms and is not covered by the Apache
+licence above:
+
+- plugin/schemas/databricks-bundle.json and src/schemas/databricks-bundle.json:
+  the Databricks Asset Bundle JSON schema from https://github.com/databricks/cli,
+  licensed under the Databricks License (plugin/schemas/DATABRICKS-LICENSE).
+  Provenance: plugin/schemas/provenance.json.
+- plugin/THIRD-PARTY-NOTICES.txt lists open-source components bundled into the
+  built plugin (for example Nunjucks and its dependencies).
+- src/vendor/connectors: helpers copied from https://github.com/ingestron/connectors
+  (Apache-2.0). Provenance: src/vendor/connectors/provenance.json.
