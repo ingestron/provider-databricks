@@ -1,4 +1,5 @@
 import { snapshotPolicySchema } from "./snapshot-policy.js";
+import { qualityChecks } from "./quality.mjs";
 import { z } from "zod";
 const check = (ok: unknown, _code: string, message: string): asserts ok => {
   if (!ok) throw new Error(message);
@@ -254,6 +255,7 @@ export function expandIngestion(
         `${table}: freshness requires a published DATE or TIMESTAMP column`,
       );
     }
+    const quality = qualityChecks(value.contract, columns, config.standard);
     steps.push({
       id: `ingest_${table}`,
       uses: "lakeflow-ingest@v1",
@@ -262,6 +264,7 @@ export function expandIngestion(
         ...config,
         keys,
         ...options,
+        ...(quality.length ? { quality } : {}),
         ...(snapshot
           ? {
               contractVersion: value.contract.version,

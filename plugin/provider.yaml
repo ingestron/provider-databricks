@@ -1,6 +1,6 @@
 apiVersion: ingestron.provider/v1
 id: databricks-native
-version: 3.3.0
+version: 3.4.0
 platform: databricks
 renderer:
   apiVersion: ingestron.provider-generation/v1
@@ -28,6 +28,27 @@ compatibility:
     - connector-runtime-assets
     - connector-runtime-capabilities
     - project-assembly
+    - quality-capabilities
+quality:
+  library: {}
+  standards:
+    snapshot-with-history@v1:
+      library:
+        nullValues: at-load
+        missingValues: at-load
+        invalidValues: at-load
+        duplicateValues: at-load
+        rowCount: at-load
+    change-feed-with-history@v1:
+      library:
+        nullValues: at-load
+        missingValues: at-load
+        invalidValues: at-load
+    append-only@v1:
+      library:
+        nullValues: at-load
+        missingValues: at-load
+        invalidValues: at-load
 planner:
   apiVersion: ingestron.provider-planning/v1
   module: ./index.mjs

@@ -13,7 +13,7 @@ workspace or data.
 With the Ingestron CLI, inside a project:
 
 ```sh
-ingestron provider install ingestron/provider-databricks/plugin/provider.yaml@3.3.0
+ingestron provider install ingestron/provider-databricks/plugin/provider.yaml@3.4.0
 ```
 
 Then select the provider in a flow and run `ingestron check` and `ingestron build`.
@@ -28,6 +28,20 @@ contracts and plugins.
 | `change-feed-with-history@v1` | Baseline and full-row change events to history and a current view |
 | `append-only@v1`              | Immutable files to a streaming table                              |
 | `snapshot-publication@v1`     | Verify immutable Parquet snapshots, then publish a delivery index |
+
+## Contract quality rules
+
+ODCS library rules in the contract (`nullValues`, `missingValues`,
+`invalidValues`, `duplicateValues`, `rowCount`) become native checks:
+
+| Standard                                        | Enforcement                                                                                                                                    |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `append-only@v1`, `change-feed-with-history@v1` | Row rules (`mustBe: 0`) as Lakeflow expectations: `ON VIOLATION FAIL UPDATE` for `severity: error`, retained and recorded in metrics otherwise |
+| `snapshot-with-history@v1`                      | Every library rule is counted on the delivered snapshot; an error rule stops the update before the snapshot is applied                         |
+
+Rules are never used to drop rows. Duplicate and row-count rules on streaming
+standards, SQL rules and engine rules are reported as not enforced. Requires
+Ingestron core 0.12.11 or later.
 
 Guides: [choose an ingestion standard](docs/ingestion-standards.md),
 [prepare a project for operations](docs/databricks-operations.md),

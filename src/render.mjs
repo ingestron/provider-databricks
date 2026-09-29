@@ -281,6 +281,21 @@ export function renderIngestion(plan) {
         python: py(expression),
       });
     }
+    // Contract quality rules: row-level expectations on streaming standards;
+    // warnings keep the row and record expectation metrics.
+    const quality = w.quality ?? [];
+    if (!isSnapshot)
+      for (const q of quality) {
+        let expression = q.expression;
+        if (isEvents && ![...w.keys, ...w.sequenceBy].includes(q.column))
+          expression = `${ident(w.operationColumn)} = 'D' OR (${expression})`;
+        rules.push({
+          name: q.name,
+          expression,
+          python: py(expression),
+          warn: q.outcome !== "fail",
+        });
+      }
     const current = target(plan, n),
       history = w.target.historySchema ? target(plan, n, true) : "";
     const ddl = n.columns.map((c) => `${ident(c.name)} ${c.type}`).join(", ");
@@ -290,6 +305,7 @@ export function renderIngestion(plan) {
         contractVersion: py(w.contractVersion),
         invalidPredicate: py(
           rules
+            .filter((r) => !r.warn)
             .map((r) => `NOT coalesce((${r.expression}), false)`)
             .join(" OR ") || "false",
         ),
@@ -301,6 +317,7 @@ export function renderIngestion(plan) {
         dataset: py(`${plan.project}.${n.flow}.${n.table}`),
         format: py(s.format),
         rules,
+        quality: py(JSON.stringify(quality)),
         history: py(history),
         current: py(current),
         tracked: w.trackedColumns ? py(w.trackedColumns) : "",
