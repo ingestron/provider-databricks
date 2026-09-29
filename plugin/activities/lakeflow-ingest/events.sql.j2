@@ -2,7 +2,7 @@
 CREATE OR REFRESH PRIVATE STREAMING TABLE {{ staging }} (
   CONSTRAINT source_schema EXPECT (_rescued_data IS NULL) ON VIOLATION FAIL UPDATE,
   CONSTRAINT operation_valid EXPECT ({{ operation }} IN ('I', 'U', 'D')) ON VIOLATION FAIL UPDATE{% for rule in rules %},
-  CONSTRAINT {{ rule.name }} EXPECT ({{ rule.expression }}) ON VIOLATION FAIL UPDATE{% endfor %}
+  CONSTRAINT {{ rule.name }} EXPECT ({{ rule.expression }}){% if not rule.warn %} ON VIOLATION FAIL UPDATE{% endif %}{% endfor %}
 )
 AS SELECT {{ columns }}, _rescued_data
 FROM STREAM read_files({{ path }}, format => {{ format }}, schema => {{ ddl }},

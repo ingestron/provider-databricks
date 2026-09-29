@@ -83,7 +83,46 @@ def next_{{ function }}_snapshot(latest_version, source_root=SOURCE_ROOT, delive
         raise ValueError("Snapshot required-column or business expectation failed; no rows were discarded")
     if data.groupBy(*keys).count().filter(F.col("count") > 1).limit(1).count():
         raise ValueError("Snapshot keys are not unique")
+    check_{{ function }}_quality(data, delivery["rowCount"])
     return data, delivery["version"]
+
+
+QUALITY = json.loads({{ quality }})
+
+
+def check_{{ function }}_quality(data, rows, rules=QUALITY):
+    """Contract library rules on the whole snapshot. Counts only; no row values."""
+    results = []
+    for rule in rules:
+        metric = rule["metric"]
+        if metric == "rowCount":
+            value = rows
+        elif metric == "duplicateValues":
+            columns = [rule["column"]] if "column" in rule else rule["properties"]
+            subset = data.select(*columns)
+            if "column" in rule:
+                subset = subset.where(F.col(rule["column"]).isNotNull())
+            value = subset.count() - subset.distinct().count()
+        else:
+            value = data.where(~F.coalesce(F.expr(rule["expression"]), F.lit(False))).count()
+        if rule["unit"] == "percent" and metric != "rowCount":
+            value = round(100 * value / rows, 4) if rows else 0
+        low_high = rule["threshold"] if isinstance(rule["threshold"], list) else [None, None]
+        passed = {
+            "mustBe": lambda: value == rule["threshold"],
+            "mustNotBe": lambda: value != rule["threshold"],
+            "mustBeGreaterThan": lambda: value > rule["threshold"],
+            "mustBeGreaterOrEqualTo": lambda: value >= rule["threshold"],
+            "mustBeLessThan": lambda: value < rule["threshold"],
+            "mustBeLessOrEqualTo": lambda: value <= rule["threshold"],
+            "mustBeBetween": lambda: low_high[0] <= value <= low_high[1],
+            "mustNotBeBetween": lambda: not (low_high[0] <= value <= low_high[1]),
+        }[rule["operator"]]()
+        results.append({"id": rule["id"], "outcome": rule["outcome"], "value": value, "passed": passed})
+    print(json.dumps({"ingestronQuality": results}))
+    failed = [r for r in results if r["outcome"] == "fail" and not r["passed"]]
+    if failed:
+        raise ValueError("Contract quality rules failed; snapshot not applied: " + ", ".join(f"{r['id']} ({r['value']})" for r in failed[:10]))
 
 
 dp.create_streaming_table(name={{ history }})

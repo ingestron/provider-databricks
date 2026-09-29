@@ -1289,7 +1289,7 @@ var require_nunjucks = __commonJS({
                 this.inBlock = false;
                 this.throwOnUndefined = throwOnUndefined;
               };
-              _proto.fail = function fail(msg, lineno, colno) {
+              _proto.fail = function fail2(msg, lineno, colno) {
                 if (lineno !== void 0) {
                   lineno += 1;
                 }
@@ -2787,7 +2787,7 @@ var require_nunjucks = __commonJS({
                 }
                 return new lib.TemplateError(msg, lineno, colno);
               };
-              _proto.fail = function fail(msg, lineno, colno) {
+              _proto.fail = function fail2(msg, lineno, colno) {
                 throw this.error(msg, lineno, colno);
               };
               _proto.skip = function skip(type) {
@@ -3628,7 +3628,7 @@ var require_nunjucks = __commonJS({
                 }
                 return buf;
               };
-              _proto.parse = function parse3() {
+              _proto.parse = function parse4() {
                 return new nodes.NodeList(0, 0, this.parseNodes());
               };
               _proto.parseAsRoot = function parseAsRoot() {
@@ -3637,7 +3637,7 @@ var require_nunjucks = __commonJS({
               return Parser2;
             })(Obj);
             module2.exports = {
-              parse: function parse3(src, extensions, opts) {
+              parse: function parse4(src, extensions, opts) {
                 var p = new Parser(lexer.lex(src, opts));
                 if (extensions !== void 0) {
                   p.extensions = extensions;
@@ -6773,6 +6773,19 @@ function renderIngestion(plan) {
         python: py(expression)
       });
     }
+    const quality = w.quality ?? [];
+    if (!isSnapshot)
+      for (const q of quality) {
+        let expression = q.expression;
+        if (isEvents && ![...w.keys, ...w.sequenceBy].includes(q.column))
+          expression = `${ident(w.operationColumn)} = 'D' OR (${expression})`;
+        rules.push({
+          name: q.name,
+          expression,
+          python: py(expression),
+          warn: q.outcome !== "fail"
+        });
+      }
     const current = target(plan, n), history = w.target.historySchema ? target(plan, n, true) : "";
     const ddl = n.columns.map((c) => `${ident(c.name)} ${c.type}`).join(", ");
     if (isSnapshot) {
@@ -6780,7 +6793,7 @@ function renderIngestion(plan) {
         policy: py(JSON.stringify(w.snapshotPolicy ?? {})),
         contractVersion: py(w.contractVersion),
         invalidPredicate: py(
-          rules.map((r) => `NOT coalesce((${r.expression}), false)`).join(" OR ") || "false"
+          rules.filter((r) => !r.warn).map((r) => `NOT coalesce((${r.expression}), false)`).join(" OR ") || "false"
         ),
         root: py(s.path),
         index: py(s.deliveryIndex),
@@ -6790,6 +6803,7 @@ function renderIngestion(plan) {
         dataset: py(`${plan.project}.${n.flow}.${n.table}`),
         format: py(s.format),
         rules,
+        quality: py(JSON.stringify(quality)),
         history: py(history),
         current: py(current),
         tracked: w.trackedColumns ? py(w.trackedColumns) : "",
@@ -8698,18 +8712,18 @@ var validateAsync = async (schema, value, _ctx) => {
   return result.issues.length === 0;
 };
 var _encode = (_Err) => {
-  const parse3 = _parse(_Err);
+  const parse4 = _parse(_Err);
   const fn = (schema, value, _ctx, _params) => {
     const ctx = _ctx ? { ..._ctx, direction: "backward" } : { direction: "backward" };
-    return parse3(schema, value, ctx, finalizeParams(fn, _params));
+    return parse4(schema, value, ctx, finalizeParams(fn, _params));
   };
   return fn;
 };
 var encode = /* @__PURE__ */ _encode($ZodRealError);
 var _decode = (_Err) => {
-  const parse3 = _parse(_Err);
+  const parse4 = _parse(_Err);
   const fn = (schema, value, _ctx, _params) => {
-    return parse3(schema, value, _ctx, finalizeParams(fn, _params));
+    return parse4(schema, value, _ctx, finalizeParams(fn, _params));
   };
   return fn;
 };
@@ -22255,9 +22269,9 @@ function foldObjects(members2) {
   } else {
     const constraints = [];
     for (const object2 of objects) {
-      const constraint = undeclaredConstraint(object2);
-      if (constraint && !constraints.some((seen) => JSON.stringify(seen) === JSON.stringify(constraint)))
-        constraints.push(constraint);
+      const constraint2 = undeclaredConstraint(object2);
+      if (constraint2 && !constraints.some((seen) => JSON.stringify(seen) === JSON.stringify(constraint2)))
+        constraints.push(constraint2);
     }
     if (constraints.length === 1)
       folded.additionalProperties = constraints[0];
@@ -25761,6 +25775,174 @@ var snapshotPolicySchema = external_exports.object({
   maximumAgeHours: external_exports.number().positive().optional()
 }).strict();
 
+// src/quality.mjs
+var METRICS = [
+  "nullValues",
+  "missingValues",
+  "invalidValues",
+  "duplicateValues",
+  "rowCount"
+];
+var OPERATORS = [
+  "mustBe",
+  "mustNotBe",
+  "mustBeGreaterThan",
+  "mustBeGreaterOrEqualTo",
+  "mustBeLessThan",
+  "mustBeLessOrEqualTo",
+  "mustBeBetween",
+  "mustNotBeBetween"
+];
+var ROW_LEVEL = /* @__PURE__ */ new Set(["nullValues", "missingValues", "invalidValues"]);
+var fail = (message) => {
+  throw new Error(message);
+};
+function parse3(rule, table, column) {
+  if (!rule || typeof rule !== "object" || (rule.type ?? "library") !== "library")
+    return void 0;
+  const where = table + (column ? "." + column : "");
+  if (!METRICS.includes(rule.metric))
+    fail(`${where}: unsupported library metric ${rule.metric}`);
+  const present = OPERATORS.filter((o) => rule[o] !== void 0);
+  if (present.length !== 1)
+    fail(`${where}: a library rule needs exactly one comparison`);
+  return {
+    id: String(rule.id ?? `${where}.${rule.metric}`),
+    table,
+    ...column ? { column } : {},
+    metric: rule.metric,
+    operator: present[0],
+    threshold: rule[present[0]],
+    arguments: rule.arguments ?? {},
+    unit: rule.unit ?? "rows",
+    outcome: /^error$/i.test(String(rule.severity ?? "")) ? "fail" : "warn",
+    source: "contract"
+  };
+}
+function contractRules(contract) {
+  const object2 = contract.schema?.[0] ?? {};
+  const table = String(object2.name ?? "table");
+  const rules = [];
+  const add = (r) => r && rules.push(r);
+  for (const q of contract.quality ?? []) add(parse3(q, "*"));
+  for (const q of object2.quality ?? []) add(parse3(q, table));
+  const keys = [];
+  for (const p of object2.properties ?? []) {
+    for (const q of p.quality ?? []) add(parse3(q, table, p.name));
+    if (p.primaryKey === true) keys.push(p.name);
+  }
+  for (const column of keys)
+    if (!rules.some((r) => r.column === column && r.metric === "nullValues"))
+      rules.push({
+        id: `${table}.${column}.key-not-null`,
+        table,
+        column,
+        metric: "nullValues",
+        operator: "mustBe",
+        threshold: 0,
+        arguments: {},
+        unit: "rows",
+        outcome: "fail",
+        source: "primary-key"
+      });
+  if (keys.length && !rules.some((r) => !r.column && r.metric === "duplicateValues"))
+    rules.push({
+      id: `${table}.key-unique`,
+      table,
+      metric: "duplicateValues",
+      operator: "mustBe",
+      threshold: 0,
+      arguments: { properties: keys },
+      unit: "rows",
+      outcome: "fail",
+      source: "primary-key"
+    });
+  return rules;
+}
+var numeric = (type) => /^(BIGINT|INT|INTEGER|SMALLINT|DOUBLE|FLOAT|DECIMAL)/.test(type);
+function literals(values, type) {
+  return (Array.isArray(values) ? values : []).filter(
+    (v) => v === null ? false : type === "STRING" ? typeof v === "string" : numeric(type) ? typeof v === "number" && Number.isFinite(v) : type === "BOOLEAN" ? typeof v === "boolean" : false
+  ).map(
+    (v) => typeof v === "string" ? `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'` : String(v).toUpperCase()
+  );
+}
+function predicate(rule, column) {
+  const c = "`" + column.name + "`";
+  if (rule.metric === "nullValues") return `${c} IS NOT NULL`;
+  if (rule.metric === "missingValues") {
+    const missing = literals(
+      rule.arguments.missingValues ?? [null, ""],
+      column.type
+    );
+    return missing.length ? `${c} IS NOT NULL AND ${c} NOT IN (${missing.join(", ")})` : `${c} IS NOT NULL`;
+  }
+  if (rule.arguments.validValues !== void 0) {
+    const valid = literals(rule.arguments.validValues, column.type);
+    return valid.length ? `${c} IS NULL OR ${c} IN (${valid.join(", ")})` : `${c} IS NULL`;
+  }
+  if (typeof rule.arguments.pattern !== "string")
+    fail(
+      `${rule.id}: invalidValues needs arguments.validValues or arguments.pattern`
+    );
+  const pattern = `^(?:${rule.arguments.pattern})$`;
+  return `${c} IS NULL OR CAST(${c} AS STRING) RLIKE '${pattern.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
+}
+var constraint = (id2, used) => {
+  let name = "q_" + id2.replace(/[^A-Za-z0-9_]/g, "_");
+  for (let i = 2; used.has(name); i++)
+    name = `q_${id2.replace(/[^A-Za-z0-9_]/g, "_")}_${i}`;
+  used.add(name);
+  return name;
+};
+function qualityChecks(contract, columns, standard) {
+  const object2 = contract.schema?.[0] ?? {};
+  const physical = new Map(
+    (object2.properties ?? []).map((p) => [p.name, p.physicalName ?? p.name])
+  );
+  const byName = new Map(columns.map((c) => [c.name, c]));
+  const column = (rule, name) => byName.get(physical.get(name) ?? name) ?? fail(`${rule.id}: unknown contract column ${name}`);
+  const snapshot = standard === "snapshot-with-history@v1";
+  const used = /* @__PURE__ */ new Set();
+  const checks = [];
+  for (const rule of contractRules(contract)) {
+    if (rule.source === "primary-key") continue;
+    const zero = rule.operator === "mustBe" && rule.threshold === 0;
+    if (!snapshot) {
+      if (!ROW_LEVEL.has(rule.metric)) continue;
+      if (!rule.column)
+        fail(
+          `${rule.id}: ${rule.metric} needs a column on streaming standards`
+        );
+      if (!zero)
+        fail(
+          `${rule.id}: streaming Lakeflow expectations check each row; use mustBe: 0 or a complete-snapshot standard`
+        );
+    }
+    const target2 = rule.column ? column(rule, rule.column) : void 0;
+    const properties = (rule.arguments.properties ?? []).map(
+      (p) => column(rule, p).name
+    );
+    if (rule.metric === "duplicateValues" && !target2 && !properties.length)
+      fail(`${rule.id}: table duplicateValues needs arguments.properties`);
+    if (ROW_LEVEL.has(rule.metric) && !target2)
+      fail(`${rule.id}: ${rule.metric} needs a column`);
+    checks.push({
+      id: rule.id,
+      name: constraint(rule.id, used),
+      metric: rule.metric,
+      outcome: rule.outcome,
+      ...target2 ? { column: target2.name } : {},
+      ...properties.length ? { properties } : {},
+      ...ROW_LEVEL.has(rule.metric) ? { expression: predicate(rule, target2) } : {},
+      operator: rule.operator,
+      threshold: rule.threshold,
+      unit: rule.unit
+    });
+  }
+  return checks;
+}
+
 // src/standards.ts
 var check4 = (ok, _code, message) => {
   if (!ok) throw new Error(message);
@@ -25940,6 +26122,7 @@ function expandIngestion(flow, providerSource, columnsByTable) {
         `${table}: freshness requires a published DATE or TIMESTAMP column`
       );
     }
+    const quality = qualityChecks(value.contract, columns, config2.standard);
     steps.push({
       id: `ingest_${table}`,
       uses: "lakeflow-ingest@v1",
@@ -25948,6 +26131,7 @@ function expandIngestion(flow, providerSource, columnsByTable) {
         ...config2,
         keys,
         ...options,
+        ...quality.length ? { quality } : {},
         ...snapshot ? {
           contractVersion: value.contract.version,
           snapshotPolicy: {

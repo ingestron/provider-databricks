@@ -27,6 +27,7 @@ optionsSchema:
     freshness: { type: object }
     snapshotPolicy: { type: object }
     expectations: { type: object }
+    quality: { type: array, items: { type: object } }
     keys: { type: array, items: { type: string } }
     sequenceBy: { type: array, items: { type: string } }
     operationColumn: { type: string }
