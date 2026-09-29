@@ -1,6 +1,6 @@
 apiVersion: ingestron.provider/v1
 id: databricks-native
-version: 3.2.0
+version: 3.3.0
 platform: databricks
 renderer:
   apiVersion: ingestron.provider-generation/v1

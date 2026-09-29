@@ -13,7 +13,7 @@ workspace or data.
 With the Ingestron CLI, inside a project:
 
 ```sh
-ingestron provider install ingestron/provider-databricks/plugin/provider.yaml@3.2.0
+ingestron provider install ingestron/provider-databricks/plugin/provider.yaml@3.3.0
 ```
 
 Then select the provider in a flow and run `ingestron check` and `ingestron build`.
