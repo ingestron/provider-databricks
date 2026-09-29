@@ -13,7 +13,7 @@ workspace or data.
 With the Ingestron CLI, inside a project:
 
 ```sh
-ingestron provider install ingestron/provider-databricks/plugin/provider.yaml@3.4.0
+ingestron provider install ingestron/provider-databricks/plugin/provider.yaml@3.5.0
 ```
 
 Then select the provider in a flow and run `ingestron check` and `ingestron build`.
@@ -39,9 +39,17 @@ ODCS library rules in the contract (`nullValues`, `missingValues`,
 | `append-only@v1`, `change-feed-with-history@v1` | Row rules (`mustBe: 0`) as Lakeflow expectations: `ON VIOLATION FAIL UPDATE` for `severity: error`, retained and recorded in metrics otherwise |
 | `snapshot-with-history@v1`                      | Every library rule is counted on the delivered snapshot; an error rule stops the update before the snapshot is applied                         |
 
-Rules are never used to drop rows. Duplicate and row-count rules on streaming
-standards, SQL rules and engine rules are reported as not enforced. Requires
-Ingestron core 0.12.11 or later.
+`type: sql` rules run on complete snapshots through `spark.sql`, where `${table}`
+is the delivered snapshot and `${column}` the rule's column; the query must return
+one number. `type: custom` rules with `engine: databricks` take a Spark SQL row
+predicate as `implementation` and become expectations (or are counted on
+snapshots). Queries and predicates are checked offline for shape only: one
+read-only statement without comments. Databricks compiles them when the check
+runs.
+
+Rules are never used to drop rows. Duplicate, row-count and SQL rules on streaming
+standards, and rules for other engines, are reported as not enforced. Requires
+Ingestron core 0.12.12 or later.
 
 Guides: [choose an ingestion standard](docs/ingestion-standards.md),
 [prepare a project for operations](docs/databricks-operations.md),
