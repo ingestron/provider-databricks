@@ -1,4 +1,5 @@
 // Native resource composition. Activity templates contain table logic only.
+import { ingestionDefinition } from "./query-ingestion.mjs";
 const check = (condition, message) => {
   if (!condition) throw new Error(message);
 };
@@ -75,6 +76,10 @@ export function renderResources(plan, pipelines, put) {
   const logs = new Set();
   const existingIds = new Set();
   for (const [alias, group] of pipelines) {
+    check(
+      !group.query?.length || !group.sources.length,
+      `${alias}: a pipeline cannot mix query ingestion with file or transformation sources`,
+    );
     const config = settings.pipelines?.[alias] ?? { ownership: "managed" };
     const external = config.ownership === "external";
     const adopted = config.ownership === "adopt";
@@ -164,11 +169,20 @@ export function renderResources(plan, pipelines, put) {
             channel: "CURRENT",
             continuous: false,
             development: settings.mode === "development",
-            libraries: group.sources.map((path) => ({
-              [path.endsWith(".ipynb") ? "notebook" : "file"]: {
-                path: "../" + path,
-              },
-            })),
+            ...(group.query?.length
+              ? {
+                  ingestion_definition: ingestionDefinition(
+                    group.query,
+                    binding.catalog,
+                  ),
+                }
+              : {
+                  libraries: group.sources.map((path) => ({
+                    [path.endsWith(".ipynb") ? "notebook" : "file"]: {
+                      path: "../" + path,
+                    },
+                  })),
+                }),
             ...(config.runAs ? { run_as: config.runAs } : {}),
             ...(config.permissions ? { permissions: config.permissions } : {}),
             ...(config.notifications

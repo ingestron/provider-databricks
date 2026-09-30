@@ -401,3 +401,87 @@ except ValueError as error:
     /FAILED Contract quality rules failed; snapshot not applied: no-negative \(2\)/,
   );
 });
+
+test("query ingestion generates a Lakeflow Connect pipeline for database tables", () => {
+  const step = expand({
+    providerSource: "test",
+    columns: { orders: columns },
+    flow: {
+      id: "sales",
+      kind: "ingestion",
+      ingestion: {
+        standard: "query-ingestion@v1",
+        pipeline: "erp",
+        target: { schema: "bronze" },
+        history: "SCD_TYPE_2",
+      },
+      defaults: { with: {} },
+      tables: {
+        orders: {
+          contract: contract(),
+          steps: {},
+          ingestion: { cursor: "amount" },
+        },
+      },
+    },
+  }).steps[0];
+  assert.equal(step.with.standard, "query-ingestion@v1");
+  const p = plan("query-ingestion@v1", step);
+  p.nodes[0].source = {
+    kind: "uc-connection",
+    connection: "erp_sql",
+    database: "sales",
+    schema: "dbo",
+    table: "Orders",
+  };
+  p.nodes[0].with = { ...step.with, schema: "bronze", table: "orders" };
+  const files = render(p);
+  assert.equal(
+    Object.keys(files).some((f) => f.startsWith("pipelines/")),
+    false,
+  );
+  const resource = Object.values(files).find(
+    (f) => f.value?.resources?.pipelines,
+  ).value.resources.pipelines;
+  const pipeline = Object.values(resource)[0];
+  assert.equal(pipeline.libraries, undefined);
+  assert.deepEqual(pipeline.ingestion_definition, {
+    connection_name: "erp_sql",
+    objects: [
+      {
+        table: {
+          source_catalog: "sales",
+          source_schema: "dbo",
+          source_table: "Orders",
+          destination_catalog: "retail",
+          destination_schema: "bronze",
+          destination_table: "orders",
+          table_configuration: {
+            scd_type: "SCD_TYPE_2",
+            primary_keys: ["order_id"],
+            query_based_connector_config: { cursor_columns: ["amount"] },
+          },
+        },
+      },
+    ],
+  });
+  assert.throws(
+    () =>
+      expand({
+        providerSource: "test",
+        columns: { orders: columns.map((c) => ({ ...c, key: false })) },
+        flow: {
+          id: "sales",
+          kind: "ingestion",
+          ingestion: {
+            standard: "query-ingestion@v1",
+            pipeline: "erp",
+            target: { schema: "bronze" },
+          },
+          defaults: { with: {} },
+          tables: { orders: { contract: contract(), steps: {} } },
+        },
+      }),
+    /SCD_TYPE_1 needs primary keys/,
+  );
+});

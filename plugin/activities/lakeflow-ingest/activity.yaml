@@ -8,7 +8,7 @@ output: relation
 effect: commit
 optionsSchema:
   type: object
-  required: [standard, pipeline, target, source, retention, keys]
+  required: [standard, pipeline, target, keys]
   properties:
     standard:
       {
@@ -17,6 +17,7 @@ optionsSchema:
             snapshot-with-history@v1,
             change-feed-with-history@v1,
             append-only@v1,
+            query-ingestion@v1,
           ],
       }
     pipeline: { type: string }
@@ -32,6 +33,8 @@ optionsSchema:
     sequenceBy: { type: array, items: { type: string } }
     operationColumn: { type: string }
     trackedColumns: { type: array, items: { type: string } }
+    history: { enum: [SCD_TYPE_1, SCD_TYPE_2, APPEND_ONLY] }
+    cursor: { type: string }
   additionalProperties: false
 generator:
   kind: native-notebook
@@ -41,7 +44,7 @@ generator:
 requirements:
   execution: databricks-lakeflow
   features: []
-  sourceKinds: [files, adls]
+  sourceKinds: [files, adls, uc-connection]
   evidence: offline
 templates:
   - source: ./append.sql.j2

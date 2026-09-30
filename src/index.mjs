@@ -1,6 +1,7 @@
 import { templateRenderer } from "./templates/engine.mjs";
 import { validateIngestionPlan, renderIngestion } from "./render.mjs";
 import { expandIngestion } from "./standards.ts";
+import { expandQueryIngestion, queryStandard } from "./query-ingestion.mjs";
 import {
   expandPublication,
   validatePublication,
@@ -41,10 +42,21 @@ export function render(plan) {
   return publication(plan) ? renderPublication(plan) : renderIngestion(plan);
 }
 export function expand(request) {
+  const standard = request.flow.ingestion?.standard;
   const expanded =
-    request.flow.ingestion?.standard === "snapshot-publication@v1"
+    standard === "snapshot-publication@v1"
       ? expandPublication(request)
-      : expandIngestion(request.flow, request.providerSource, request.columns);
+      : standard === queryStandard
+        ? expandQueryIngestion(
+            request.flow,
+            request.providerSource,
+            request.columns,
+          )
+        : expandIngestion(
+            request.flow,
+            request.providerSource,
+            request.columns,
+          );
   expanded.steps = expanded.steps.map((step) => ({
     ...step,
     uses: step.select?.some(

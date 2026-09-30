@@ -51,7 +51,7 @@ sources:
       access:
         model: subscription
         url: https://learn.microsoft.com/azure/databricks/
-        note: A Unity Catalog workspace with access to the storage path or Volume
+        note: A Unity Catalog workspace
       auth:
         - unity-catalog
       network:
@@ -60,6 +60,307 @@ sources:
       maturity: preview
       verified: 2026-09-30
       note: JSON and Parquet files in ADLS or Volumes through Auto Loader
+    bindingSchema:
+      type: object
+      required:
+        - kind
+      properties:
+        kind:
+          enum:
+            - adls
+            - files
+    source:
+      binding: "{{connection.binding}}"
+  s3:
+    route: native
+    standards:
+      - append-only@v1
+      - snapshot-with-history@v1
+      - change-feed-with-history@v1
+    capabilities:
+      - snapshot
+      - incremental
+    reference:
+      docs: https://learn.microsoft.com/azure/databricks/ingestion/cloud-object-storage/auto-loader/
+      vendorStatus: ga
+      licence: Databricks platform terms; generated files Apache-2.0
+      cost:
+        model: included
+        pricing: https://www.databricks.com/product/pricing/lakeflow-declarative-pipelines
+        note: Runs as Lakeflow pipeline compute in your workspace
+      access:
+        model: subscription
+        url: https://learn.microsoft.com/azure/databricks/
+        note: A Unity Catalog workspace
+      auth:
+        - unity-catalog
+      network:
+        - public
+        - private-network
+      maturity: preview
+      verified: 2026-09-30
+      note: JSON and Parquet files in S3 through Auto Loader and a Unity Catalog
+        external location
+    bindingSchema:
+      type: object
+      required:
+        - kind
+      properties:
+        kind:
+          enum:
+            - adls
+            - files
+    source:
+      binding: "{{connection.binding}}"
+  gcs:
+    route: native
+    standards:
+      - append-only@v1
+      - snapshot-with-history@v1
+      - change-feed-with-history@v1
+    capabilities:
+      - snapshot
+      - incremental
+    reference:
+      docs: https://learn.microsoft.com/azure/databricks/ingestion/cloud-object-storage/auto-loader/
+      vendorStatus: ga
+      licence: Databricks platform terms; generated files Apache-2.0
+      cost:
+        model: included
+        pricing: https://www.databricks.com/product/pricing/lakeflow-declarative-pipelines
+        note: Runs as Lakeflow pipeline compute in your workspace
+      access:
+        model: subscription
+        url: https://learn.microsoft.com/azure/databricks/
+        note: A Unity Catalog workspace
+      auth:
+        - unity-catalog
+      network:
+        - public
+        - private-network
+      maturity: preview
+      verified: 2026-09-30
+      note:
+        JSON and Parquet files in Google Cloud Storage through Auto Loader and a
+        Unity Catalog external location
+    bindingSchema:
+      type: object
+      required:
+        - kind
+      properties:
+        kind:
+          enum:
+            - adls
+            - files
+    source:
+      binding: "{{connection.binding}}"
+  sql-server:
+    route: native
+    standards:
+      - query-ingestion@v1
+    capabilities:
+      - snapshot
+      - incremental
+    reference:
+      docs: https://learn.microsoft.com/azure/databricks/ingestion/lakeflow-connect/query-based-overview
+      vendorStatus: preview
+      licence: Databricks platform terms; generated files Apache-2.0
+      cost:
+        model: separately-billed
+        pricing: https://www.databricks.com/product/pricing/lakeflow-connect
+        note:
+          Lakeflow Connect ingestion on serverless compute is billed as its own
+          usage
+      access:
+        model: subscription
+        url: https://learn.microsoft.com/azure/databricks/
+        note: A Unity Catalog workspace
+      auth:
+        - unity-catalog
+      network:
+        - public
+        - private-network
+        - on-premises
+      maturity: preview
+      verified: 2026-09-30
+      note:
+        SQL Server and Azure SQL through a Lakeflow Connect query-based connector
+        and a Unity Catalog connection; release status is not stated on the
+        page, so treated as preview; contract columns are not projected natively
+    bindingSchema:
+      type: object
+      required:
+        - connection
+        - database
+      properties:
+        connection:
+          type: string
+          minLength: 1
+          maxLength: 255
+        database:
+          type: string
+          minLength: 1
+          maxLength: 255
+      additionalProperties: false
+    source:
+      kind: uc-connection
+      connection: "{{binding.connection}}"
+      database: "{{binding.database}}"
+  postgresql:
+    route: native
+    standards:
+      - query-ingestion@v1
+    capabilities:
+      - snapshot
+      - incremental
+    reference:
+      docs: https://learn.microsoft.com/azure/databricks/ingestion/lakeflow-connect/query-based-overview
+      vendorStatus: preview
+      licence: Databricks platform terms; generated files Apache-2.0
+      cost:
+        model: separately-billed
+        pricing: https://www.databricks.com/product/pricing/lakeflow-connect
+        note:
+          Lakeflow Connect ingestion on serverless compute is billed as its own
+          usage
+      access:
+        model: subscription
+        url: https://learn.microsoft.com/azure/databricks/
+        note: A Unity Catalog workspace
+      auth:
+        - unity-catalog
+      network:
+        - public
+        - private-network
+        - on-premises
+      maturity: preview
+      verified: 2026-09-30
+      note:
+        PostgreSQL through a Lakeflow Connect query-based connector and a Unity
+        Catalog connection; release status is not stated on the page, so treated
+        as preview; contract columns are not projected natively
+    bindingSchema:
+      type: object
+      required:
+        - connection
+        - database
+      properties:
+        connection:
+          type: string
+          minLength: 1
+          maxLength: 255
+        database:
+          type: string
+          minLength: 1
+          maxLength: 255
+      additionalProperties: false
+    source:
+      kind: uc-connection
+      connection: "{{binding.connection}}"
+      database: "{{binding.database}}"
+  mysql:
+    route: native
+    standards:
+      - query-ingestion@v1
+    capabilities:
+      - snapshot
+      - incremental
+    reference:
+      docs: https://learn.microsoft.com/azure/databricks/ingestion/lakeflow-connect/query-based-overview
+      vendorStatus: preview
+      licence: Databricks platform terms; generated files Apache-2.0
+      cost:
+        model: separately-billed
+        pricing: https://www.databricks.com/product/pricing/lakeflow-connect
+        note:
+          Lakeflow Connect ingestion on serverless compute is billed as its own
+          usage
+      access:
+        model: subscription
+        url: https://learn.microsoft.com/azure/databricks/
+        note: A Unity Catalog workspace
+      auth:
+        - unity-catalog
+      network:
+        - public
+        - private-network
+        - on-premises
+      maturity: preview
+      verified: 2026-09-30
+      note:
+        MySQL and MariaDB through a Lakeflow Connect query-based connector and a
+        Unity Catalog connection; release status is not stated on the page, so
+        treated as preview; contract columns are not projected natively
+    bindingSchema:
+      type: object
+      required:
+        - connection
+        - database
+      properties:
+        connection:
+          type: string
+          minLength: 1
+          maxLength: 255
+        database:
+          type: string
+          minLength: 1
+          maxLength: 255
+      additionalProperties: false
+    source:
+      kind: uc-connection
+      connection: "{{binding.connection}}"
+      database: "{{binding.database}}"
+  oracle:
+    route: native
+    standards:
+      - query-ingestion@v1
+    capabilities:
+      - snapshot
+      - incremental
+    reference:
+      docs: https://learn.microsoft.com/azure/databricks/ingestion/lakeflow-connect/query-based-overview
+      vendorStatus: preview
+      licence: Databricks platform terms; generated files Apache-2.0
+      cost:
+        model: separately-billed
+        pricing: https://www.databricks.com/product/pricing/lakeflow-connect
+        note:
+          Lakeflow Connect ingestion on serverless compute is billed as its own
+          usage
+      access:
+        model: subscription
+        url: https://learn.microsoft.com/azure/databricks/
+        note: A Unity Catalog workspace
+      auth:
+        - unity-catalog
+      network:
+        - public
+        - private-network
+        - on-premises
+      maturity: preview
+      verified: 2026-09-30
+      note: Oracle through a Lakeflow Connect query-based connector and a Unity
+        Catalog connection; release status is not stated on the page, so treated
+        as preview; contract columns are not projected natively
+    bindingSchema:
+      type: object
+      required:
+        - connection
+        - database
+      properties:
+        connection:
+          type: string
+          minLength: 1
+          maxLength: 255
+        database:
+          type: string
+          minLength: 1
+          maxLength: 255
+      additionalProperties: false
+    source:
+      kind: uc-connection
+      connection: "{{binding.connection}}"
+      database: "{{binding.database}}"
 quality:
   library: {}
   standards:
@@ -97,6 +398,8 @@ standards:
     description: Baseline and full-row change events to history and current view
   - id: append-only@v1
     description: Immutable files to a streaming table
+  - id: query-ingestion@v1
+    description: Database tables through a Lakeflow Connect query-based connector
   - id: snapshot-publication@v1
     description: Verify immutable Parquet snapshots and conditionally publish an
       ordered delivery index
