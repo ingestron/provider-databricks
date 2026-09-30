@@ -653,3 +653,42 @@ test("a relative file path joins the storage binding root, as on ADF and the por
   };
   assert.throws(() => render(p), /needs root/);
 });
+
+test("native database flows get a read-only metadata query through a foreign catalog", async () => {
+  const { discoveryRoute } = await import("../src/discovery-route.mjs");
+  const input = {
+    flow: "sales_lakeflow",
+    kind: "postgresql",
+    source: {
+      kind: "uc-connection",
+      connection: "sales_pg",
+      database: "sales",
+    },
+    tables: { customers: { schema: "public", table: "customers" } },
+    binding: { kind: "databricks", catalog: "dev" },
+    connectionBinding: {
+      connection: "sales_pg",
+      database: "sales",
+      foreignCatalog: "sales_fed",
+    },
+  };
+  const sql = discoveryRoute(input).artifacts["discovery.sql"];
+  assert.match(sql, /FROM `sales_fed`\.information_schema\.columns/);
+  assert.match(sql, /table_schema IN \('public'\)/);
+  assert.throws(
+    () =>
+      discoveryRoute({
+        ...input,
+        connectionBinding: { connection: "sales_pg" },
+      }),
+    /Set foreignCatalog/,
+  );
+  assert.throws(
+    () =>
+      discoveryRoute({
+        ...input,
+        source: { kind: "salesforce", connection: "sf" },
+      }),
+    /portable connectors/,
+  );
+});
