@@ -6995,7 +6995,7 @@ function validateIngestionPlan(plan) {
       );
       check2(
         Object.keys(s).every(
-          (k) => ["binding", "path", "format", "deliveryIndex"].includes(k)
+          (k) => ["binding", "path", "format", "deliveryIndex", "dataset"].includes(k)
         ),
         "Unsupported source setting; ingestion standards do not silently ignore source options"
       );
@@ -7009,6 +7009,10 @@ function validateIngestionPlan(plan) {
           !s.deliveryIndex,
           "deliveryIndex applies only to complete snapshots"
         );
+      check2(
+        s.dataset === void 0 || n.with.standard === "snapshot-with-history@v1" && typeof s.dataset === "string" && /^[A-Za-z_][\w-]*(\.[A-Za-z_][\w-]*){2,}$/.test(s.dataset),
+        "source.dataset names the published snapshot dataset of a complete-snapshot source"
+      );
       if (n.with.target.historySchema) {
         const h = target(plan, n, true);
         relation(h);
@@ -7184,7 +7188,7 @@ function renderIngestion(plan) {
         schema: py(ddl),
         keys: py(w.keys),
         function: n.id.replace(/[^A-Za-z0-9_]/g, "_"),
-        dataset: py(`${plan.project}.${n.flow}.${n.table}`),
+        dataset: py(s.dataset ?? `${plan.project}.${n.flow}.${n.table}`),
         format: py(s.format),
         rules,
         quality: py(JSON.stringify(quality)),
