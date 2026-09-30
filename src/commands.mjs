@@ -1,5 +1,6 @@
 import { assemble } from "./project-assembly.mjs";
 import { prepare } from "./connectors.mjs";
+import { discoveryRoute } from "./discovery-route.mjs";
 import { connectorContracts } from "./vendor/connectors/connector-contract-export.mjs";
 const require = (condition, message) => {
   if (!condition) throw new Error(message);
@@ -78,6 +79,8 @@ export function command(request) {
   if (request.command === "connection prepare") return prepare(request.input);
   if (request.command === "connector contracts")
     return connectorContracts(request.input);
+  if (request.command === "discover route")
+    return discoveryRoute(request.input);
   if (request.command === "discover import")
     return discovery(request.input, request.context);
   if (request.command === "deploy inspect")

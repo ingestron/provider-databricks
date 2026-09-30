@@ -1106,9 +1106,9 @@ function blockString({ comment, type, value }, ctx, onComment, onChompKeep) {
     return quotedString(value, ctx);
   }
   const indent = ctx.indent || (ctx.forceBlockIndent || containsDocumentMarker(value) ? "  " : "");
-  const literal = blockQuote === "literal" ? true : blockQuote === "folded" || type === Scalar.BLOCK_FOLDED ? false : type === Scalar.BLOCK_LITERAL ? true : !lineLengthOverLimit(value, lineWidth, indent.length);
+  const literal2 = blockQuote === "literal" ? true : blockQuote === "folded" || type === Scalar.BLOCK_FOLDED ? false : type === Scalar.BLOCK_LITERAL ? true : !lineLengthOverLimit(value, lineWidth, indent.length);
   if (!value)
-    return literal ? "|\n" : ">\n";
+    return literal2 ? "|\n" : ">\n";
   let chomp;
   let endStart;
   for (endStart = value.length; endStart > 0; --endStart) {
@@ -1157,7 +1157,7 @@ function blockString({ comment, type, value }, ctx, onComment, onChompKeep) {
     if (onComment)
       onComment();
   }
-  if (!literal) {
+  if (!literal2) {
     const foldedValue = value.replace(/\n+/g, "\n$&").replace(/(?:^|\n)([\t ].*)(?:([\n\t ]*)\n(?![\n\t ]))?/g, "$1$2").replace(/\n+/g, `$&${indent}`);
     let literalFallback = false;
     const foldOptions = getFoldOptions(ctx, true);
@@ -6939,6 +6939,51 @@ print(result)
   };
 }
 
+// src/discovery-route.mjs
+var fail = (message) => {
+  throw new Error(message);
+};
+var identifier = (v) => typeof v === "string" && /^[A-Za-z_][A-Za-z0-9_$-]{0,127}$/.test(v);
+var literal = (v) => `'${String(v).replace(/'/g, "''")}'`;
+function discoveryRoute(input) {
+  const { flow, source, tables, connectionBinding } = input;
+  source?.kind === "uc-connection" || fail(
+    "Databricks metadata discovery covers database routes; discover SaaS and file sources through their portable connectors"
+  );
+  const catalog = connectionBinding?.foreignCatalog;
+  identifier(catalog) || fail(
+    `Set foreignCatalog on the connection binding: a Lakehouse Federation catalog over connection ${source.connection} (CREATE FOREIGN CATALOG ... USING CONNECTION ${source.connection})`
+  );
+  const entries = Object.values(tables ?? {});
+  entries.length > 0 && entries.every((t) => identifier(t.schema) && identifier(t.table)) || fail("Each table needs a source schema and table");
+  const schemas2 = [...new Set(entries.map((t) => t.schema))];
+  const names = [...new Set(entries.map((t) => t.table))];
+  const query = `-- Ingestron metadata discovery for flow ${flow}; read-only.
+SELECT c.table_schema AS schema_name, c.table_name, c.column_name, c.ordinal_position,
+  c.data_type, c.numeric_precision, c.numeric_scale, c.is_nullable AS nullable
+FROM \`${catalog}\`.information_schema.columns AS c
+WHERE c.table_schema IN (${schemas2.map(literal).join(", ")})
+  AND c.table_name IN (${names.map(literal).join(", ")})
+ORDER BY c.table_schema, c.table_name, c.ordinal_position;
+`;
+  return {
+    apiVersion: "ingestron.artifact-proposal/v1",
+    artifacts: {
+      "discovery.sql": query,
+      "README.md": `# Metadata discovery for ${flow}
+
+Run \`discovery.sql\` on a SQL warehouse with USE CATALOG on \`${catalog}\` and read access to the listed tables. Download the result as JSON (an array of rows) and pass it to \`ingestron discover --flow ${flow} --from <file>\`. The query reads catalogue metadata only. Primary keys are not exposed through foreign catalogs; mark them in review.
+`
+    },
+    review: [
+      "Foreign catalog names and column types follow Lakehouse Federation's mapping of the source",
+      "Primary keys are not in the export; accept keys during review"
+    ],
+    next: `Run build/discovery/${flow}/discovery.sql on a SQL warehouse and download the rows as JSON.`,
+    deployed: false
+  };
+}
+
 // src/vendor/connectors/connector-contract-export.mjs
 var check4 = (value, message) => {
   if (!value) throw Error(message);
@@ -7044,6 +7089,8 @@ function command(request) {
   if (request.command === "connection prepare") return prepare(request.input);
   if (request.command === "connector contracts")
     return connectorContracts(request.input);
+  if (request.command === "discover route")
+    return discoveryRoute(request.input);
   if (request.command === "discover import")
     return discovery(request.input, request.context);
   if (request.command === "deploy inspect")

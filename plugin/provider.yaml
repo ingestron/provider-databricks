@@ -168,6 +168,8 @@ sources:
       binding: "{{connection.binding}}"
   sql-server:
     route: native
+    discovery:
+      command: discover route
     standards:
       - query-ingestion@v1
     capabilities:
@@ -213,6 +215,10 @@ sources:
           type: string
           minLength: 1
           maxLength: 255
+        foreignCatalog:
+          type: string
+          minLength: 1
+          maxLength: 128
       additionalProperties: false
     source:
       kind: uc-connection
@@ -220,6 +226,8 @@ sources:
       database: "{{binding.database}}"
   postgresql:
     route: native
+    discovery:
+      command: discover route
     standards:
       - query-ingestion@v1
     capabilities:
@@ -265,6 +273,10 @@ sources:
           type: string
           minLength: 1
           maxLength: 255
+        foreignCatalog:
+          type: string
+          minLength: 1
+          maxLength: 128
       additionalProperties: false
     source:
       kind: uc-connection
@@ -272,6 +284,8 @@ sources:
       database: "{{binding.database}}"
   mysql:
     route: native
+    discovery:
+      command: discover route
     standards:
       - query-ingestion@v1
     capabilities:
@@ -317,6 +331,10 @@ sources:
           type: string
           minLength: 1
           maxLength: 255
+        foreignCatalog:
+          type: string
+          minLength: 1
+          maxLength: 128
       additionalProperties: false
     source:
       kind: uc-connection
@@ -324,6 +342,8 @@ sources:
       database: "{{binding.database}}"
   oracle:
     route: native
+    discovery:
+      command: discover route
     standards:
       - query-ingestion@v1
     capabilities:
@@ -368,6 +388,10 @@ sources:
           type: string
           minLength: 1
           maxLength: 255
+        foreignCatalog:
+          type: string
+          minLength: 1
+          maxLength: 128
       additionalProperties: false
     source:
       kind: uc-connection
@@ -613,6 +637,39 @@ commands:
   execution: offline-json
   module: ./commands.mjs
   definitions:
+    - name: discover route
+      description:
+        Generate a read-only metadata query through a Lakehouse Federation
+        foreign catalog for a native database connection flow; no workspace
+        calls.
+      inputSchema:
+        type: object
+        additionalProperties: false
+        required:
+          - flow
+          - kind
+          - source
+          - tables
+          - binding
+        properties:
+          flow:
+            type: string
+            minLength: 1
+            maxLength: 100
+          kind:
+            type: string
+            minLength: 1
+            maxLength: 50
+          source:
+            type: object
+          tables:
+            type: object
+          target:
+            type: object
+          binding:
+            type: object
+          connectionBinding:
+            type: object
     - name: discover import
       description:
         Review supplied table metadata as contract proposals; no source
