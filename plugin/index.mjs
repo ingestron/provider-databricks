@@ -1289,7 +1289,7 @@ var require_nunjucks = __commonJS({
                 this.inBlock = false;
                 this.throwOnUndefined = throwOnUndefined;
               };
-              _proto.fail = function fail4(msg, lineno, colno) {
+              _proto.fail = function fail5(msg, lineno, colno) {
                 if (lineno !== void 0) {
                   lineno += 1;
                 }
@@ -2787,7 +2787,7 @@ var require_nunjucks = __commonJS({
                 }
                 return new lib.TemplateError(msg, lineno, colno);
               };
-              _proto.fail = function fail4(msg, lineno, colno) {
+              _proto.fail = function fail5(msg, lineno, colno) {
                 throw this.error(msg, lineno, colno);
               };
               _proto.skip = function skip(type) {
@@ -6104,16 +6104,16 @@ function templateRenderer(templates) {
     trimBlocks: true,
     lstripBlocks: true
   });
-  const identifier4 = (value) => {
+  const identifier5 = (value) => {
     if (typeof value !== "string" || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(value))
       throw new Error(`Invalid SQL identifier: ${value}`);
     return "`" + value + "`";
   };
-  env.addFilter("identifier", identifier4);
+  env.addFilter("identifier", identifier5);
   env.addFilter("relation", (value) => {
     if (typeof value !== "string")
       throw new Error("relation requires a dotted name");
-    return value.split(".").map(identifier4).join(".");
+    return value.split(".").map(identifier5).join(".");
   });
   env.addFilter("sql_string", (value) => {
     if (typeof value !== "string")
@@ -6706,8 +6706,174 @@ function sharePointObject(s, columns, destination) {
   };
 }
 
+// src/saas-ingestion.mjs
+var fail3 = (message) => {
+  throw new Error(message);
+};
+var identifier3 = (v) => typeof v === "string" && /^[A-Za-z_][A-Za-z0-9_]*$/.test(v);
+var saasStandard = "saas-ingestion@v1";
+var histories2 = ["SCD_TYPE_1", "SCD_TYPE_2"];
+var saasApps = {
+  salesforce: {
+    label: "Salesforce",
+    schema: "objects",
+    // Standard and custom object API names, such as Account or Invoice__c.
+    object: (v) => /^[A-Za-z][A-Za-z0-9_]{0,79}$/.test(v),
+    hint: "a Salesforce object API name such as Account or Invoice__c"
+  },
+  hubspot: {
+    label: "HubSpot",
+    schema: "default",
+    tables: [
+      // Marketing Hub
+      "email_events",
+      "email_subscription_change",
+      "marketing_emails",
+      "email_campaign",
+      "email_campaign_list",
+      "email_subscriptions",
+      "form_submissions",
+      "forms",
+      "marketing_campaign_asset",
+      "marketing_campaign_budget",
+      "marketing_campaign_spend",
+      "marketing_campaigns",
+      "marketing_event_list",
+      "marketing_events",
+      // CRM Hub (Beta)
+      "calls",
+      "companies",
+      "contacts",
+      "deals",
+      "emails",
+      "leads",
+      "line_items",
+      "meetings",
+      "notes",
+      "orders",
+      "products",
+      "tasks",
+      "tickets",
+      "deals_pipelines",
+      "owners",
+      "tickets_pipelines"
+    ]
+  },
+  jira: {
+    label: "Jira",
+    schema: "default",
+    tables: [
+      "application_roles",
+      "boards",
+      "issue_comments",
+      "issue_field_values",
+      "issue_fields",
+      "issue_links",
+      "issue_types",
+      "issue_watchers",
+      "issue_worklogs",
+      "issues",
+      "permission_schemes",
+      "priority",
+      "project_board",
+      "project_categories",
+      "project_components",
+      "project_permissions",
+      "project_role_actor",
+      "project_roles",
+      "projects",
+      "resolutions",
+      "security_level",
+      "security_schemes",
+      "sprints",
+      "status",
+      "status_category",
+      "user_group",
+      "users",
+      "version"
+    ]
+  }
+};
+function expandSaasIngestion(flow, providerSource) {
+  const config2 = flow.ingestion ?? {};
+  for (const key of Object.keys(config2))
+    ["standard", "pipeline", "target", "history"].includes(key) || fail3(`Unsupported SaaS ingestion setting ${key}`);
+  typeof config2.pipeline === "string" && /^[A-Za-z0-9_-]+$/.test(config2.pipeline) || fail3("A logical pipeline alias is required");
+  config2.target && Object.keys(config2.target).every((k) => k === "schema") && identifier3(config2.target.schema) || fail3("SaaS ingestion target needs only a destination schema");
+  const history = config2.history ?? "SCD_TYPE_1";
+  histories2.includes(history) || fail3(`history must be one of ${histories2.join(", ")}`);
+  Object.keys(flow.defaults?.with ?? {}).length && fail3("Ingestion standards own their processing");
+  const steps = Object.keys(flow.tables ?? {}).map((table) => {
+    const value = flow.tables[table];
+    value.ingestion === void 0 && !Object.keys(value.steps ?? {}).length || fail3(`${table}: SaaS ingestion has no table settings`);
+    return {
+      id: `ingest_${table}`,
+      uses: "lakeflow-ingest@v1",
+      select: [table],
+      with: {
+        standard: saasStandard,
+        pipeline: config2.pipeline,
+        target: config2.target,
+        history,
+        keys: []
+      }
+    };
+  });
+  return {
+    steps,
+    recovery: {
+      standard: saasStandard,
+      provider: providerSource,
+      capture: "managed-incremental",
+      replaySource: "source-application",
+      retention: "source-owned",
+      actualCompleteness: "unverified",
+      detail: "Lakeflow Connect keeps each table's cursor; tables without one are fully refreshed on every run. Deletes are propagated only where the connector supports it.",
+      assumptions: [
+        "The Unity Catalog connection's OAuth identity can read every selected table.",
+        "The application's API limits allow each scheduled run to complete."
+      ]
+    }
+  };
+}
+function validateSaasNode(n) {
+  const s = n.source ?? {};
+  for (const key of Object.keys(s))
+    ["kind", "connection", "object"].includes(key) || fail3(`Unsupported SaaS source setting ${key}`);
+  const app = saasApps[s.kind];
+  app || fail3(
+    `SaaS ingestion reads ${Object.keys(saasApps).join(", ")}, not ${s.kind}`
+  );
+  typeof s.connection === "string" && s.connection.length > 0 && s.connection.length <= 255 || fail3(`${app.label} ingestion needs a Unity Catalog connection`);
+  const known = app.tables ? app.tables.includes(s.object) : typeof s.object === "string" && app.object(s.object);
+  known || fail3(
+    `${app.label} object must be ${app.hint ?? `one of ${app.tables.join(", ")}`}`
+  );
+}
+function saasObject(s, columns, history, destination) {
+  columns.every((c) => c.target === void 0 || c.target === c.name) || fail3(
+    `${saasApps[s.kind].label} ingestion keeps source field names; remove target renames`
+  );
+  return {
+    connection: s.connection,
+    object: {
+      table: {
+        source_schema: saasApps[s.kind].schema,
+        source_table: s.object,
+        destination_catalog: destination.catalog,
+        destination_schema: destination.schema,
+        destination_table: destination.table,
+        table_configuration: {
+          scd_type: history,
+          include_columns: columns.map((c) => c.name)
+        }
+      }
+    }
+  };
+}
+
 // src/render.mjs
-var managedStandards = [queryStandard, sharePointStandard];
+var managedStandards = [queryStandard, sharePointStandard, saasStandard];
 var check2 = (ok, message) => {
   if (!ok) throw new Error(message);
 };
@@ -6807,6 +6973,7 @@ function validateIngestionPlan(plan) {
         "Use flow.ingestion to select lakeflow-ingest"
       );
       if (n.with.standard === queryStandard) validateQueryNode(n);
+      else if (n.with.standard === saasStandard) validateSaasNode(n);
       else validateSharePointNode(n);
     } else if (kind(n) === "lakeflow-ingest") {
       check2(
@@ -6950,7 +7117,7 @@ function renderIngestion(plan) {
             destinationTable: destination.table
           },
           destination.catalog
-        ) : sharePointObject(n.source, n.columns, destination)
+        ) : n.with.standard === saasStandard ? saasObject(n.source, n.columns, n.with.history, destination) : sharePointObject(n.source, n.columns, destination)
       ];
       if (n.with.standard === sharePointStandard) group.channel = "PREVIEW";
       continue;
@@ -26011,21 +26178,21 @@ var OPERATORS = [
   "mustNotBeBetween"
 ];
 var ROW_LEVEL = /* @__PURE__ */ new Set(["nullValues", "missingValues", "invalidValues"]);
-var fail3 = (message) => {
+var fail4 = (message) => {
   throw new Error(message);
 };
 function sqlShape(id2, text, kind2) {
   const stripped = String(text).replace(/'(?:[^'\\]|\\.|'')*'/g, "''").replace(/`[^`]*`/g, "``").replace(/"[^"]*"/g, '""');
   if (/--|\/\*|;/.test(stripped))
-    fail3(`${id2}: ${kind2} must be one statement without comments or semicolons`);
+    fail4(`${id2}: ${kind2} must be one statement without comments or semicolons`);
   if (/\b(INSERT|UPDATE|DELETE|MERGE|DROP|CREATE|ALTER|TRUNCATE|GRANT|REVOKE|EXEC|EXECUTE|CALL|USE|SET|OPTIMIZE|VACUUM|COPY|REFRESH|CACHE|UNCACHE|INTO|RESTORE|MSCK|LOAD)\b/i.test(
     stripped
   ))
-    fail3(`${id2}: ${kind2} must only read data`);
+    fail4(`${id2}: ${kind2} must only read data`);
   if (kind2 === "query" && !/^\s*(SELECT|WITH)\b/i.test(stripped))
-    fail3(`${id2}: a sql rule query must start with SELECT or WITH`);
+    fail4(`${id2}: a sql rule query must start with SELECT or WITH`);
   if (kind2 === "predicate" && /\bSELECT\b/i.test(stripped))
-    fail3(`${id2}: a databricks rule is a row predicate without subqueries`);
+    fail4(`${id2}: a databricks rule is a row predicate without subqueries`);
   return text;
 }
 function parse3(rule, table, column) {
@@ -26036,7 +26203,7 @@ function parse3(rule, table, column) {
   if (type === "sql" || type === "custom") {
     const present2 = OPERATORS.filter((o) => rule[o] !== void 0);
     if (type === "sql" && present2.length !== 1)
-      fail3(`${where}: a sql rule needs exactly one comparison`);
+      fail4(`${where}: a sql rule needs exactly one comparison`);
     return {
       id: String(rule.id ?? `${where}.${type === "sql" ? "sql" : rule.engine}`),
       table,
@@ -26055,10 +26222,10 @@ function parse3(rule, table, column) {
   }
   if (type !== "library") return void 0;
   if (!METRICS.includes(rule.metric))
-    fail3(`${where}: unsupported library metric ${rule.metric}`);
+    fail4(`${where}: unsupported library metric ${rule.metric}`);
   const present = OPERATORS.filter((o) => rule[o] !== void 0);
   if (present.length !== 1)
-    fail3(`${where}: a library rule needs exactly one comparison`);
+    fail4(`${where}: a library rule needs exactly one comparison`);
   return {
     id: String(rule.id ?? `${where}.${rule.metric}`),
     table,
@@ -26135,7 +26302,7 @@ function predicate(rule, column) {
     return valid.length ? `${c} IS NULL OR ${c} IN (${valid.join(", ")})` : `${c} IS NULL`;
   }
   if (typeof rule.arguments.pattern !== "string")
-    fail3(
+    fail4(
       `${rule.id}: invalidValues needs arguments.validValues or arguments.pattern`
     );
   const pattern = `^(?:${rule.arguments.pattern})$`;
@@ -26154,7 +26321,7 @@ function qualityChecks(contract, columns, standard) {
     (object2.properties ?? []).map((p) => [p.name, p.physicalName ?? p.name])
   );
   const byName = new Map(columns.map((c) => [c.name, c]));
-  const column = (rule, name2) => byName.get(physical.get(name2) ?? name2) ?? fail3(`${rule.id}: unknown contract column ${name2}`);
+  const column = (rule, name2) => byName.get(physical.get(name2) ?? name2) ?? fail4(`${rule.id}: unknown contract column ${name2}`);
   const snapshot = standard === "snapshot-with-history@v1";
   const used = /* @__PURE__ */ new Set();
   const checks = [];
@@ -26163,7 +26330,7 @@ function qualityChecks(contract, columns, standard) {
     if (rule.metric === "custom") {
       if (rule.engine !== "databricks") continue;
       if (typeof rule.implementation !== "string")
-        fail3(
+        fail4(
           `${rule.id}: a databricks rule implementation is a SQL predicate string`
         );
       checks.push({
@@ -26200,11 +26367,11 @@ function qualityChecks(contract, columns, standard) {
     if (!snapshot) {
       if (!ROW_LEVEL.has(rule.metric)) continue;
       if (!rule.column)
-        fail3(
+        fail4(
           `${rule.id}: ${rule.metric} needs a column on streaming standards`
         );
       if (!zero)
-        fail3(
+        fail4(
           `${rule.id}: streaming Lakeflow expectations check each row; use mustBe: 0 or a complete-snapshot standard`
         );
     }
@@ -26213,9 +26380,9 @@ function qualityChecks(contract, columns, standard) {
       (p) => column(rule, p).name
     );
     if (rule.metric === "duplicateValues" && !target2 && !properties.length)
-      fail3(`${rule.id}: table duplicateValues needs arguments.properties`);
+      fail4(`${rule.id}: table duplicateValues needs arguments.properties`);
     if (ROW_LEVEL.has(rule.metric) && !target2)
-      fail3(`${rule.id}: ${rule.metric} needs a column`);
+      fail4(`${rule.id}: ${rule.metric} needs a column`);
     checks.push({
       id: rule.id,
       name: constraint(rule.id, used),
@@ -26236,15 +26403,15 @@ function qualityChecks(contract, columns, standard) {
 var check4 = (ok, _code, message) => {
   if (!ok) throw new Error(message);
 };
-var identifier3 = external_exports.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/);
+var identifier4 = external_exports.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/);
 var tableIngestionSchema = external_exports.object({
-  freshness: external_exports.object({ column: identifier3, maximumAgeHours: external_exports.number().positive() }).strict().optional(),
+  freshness: external_exports.object({ column: identifier4, maximumAgeHours: external_exports.number().positive() }).strict().optional(),
   snapshotPolicy: snapshotPolicySchema.optional(),
-  expectations: external_exports.record(identifier3, external_exports.string().min(1)).optional(),
-  keys: external_exports.array(identifier3).min(1).optional(),
-  sequenceBy: external_exports.array(identifier3).min(1).max(1).optional(),
-  operationColumn: identifier3.optional(),
-  trackedColumns: external_exports.array(identifier3).min(1).optional()
+  expectations: external_exports.record(identifier4, external_exports.string().min(1)).optional(),
+  keys: external_exports.array(identifier4).min(1).optional(),
+  sequenceBy: external_exports.array(identifier4).min(1).max(1).optional(),
+  operationColumn: identifier4.optional(),
+  trackedColumns: external_exports.array(identifier4).min(1).optional()
 }).strict().optional();
 var ingestionSchema = external_exports.object({
   standard: external_exports.enum([
@@ -26254,7 +26421,7 @@ var ingestionSchema = external_exports.object({
   ]),
   snapshotPolicy: snapshotPolicySchema.optional(),
   pipeline: external_exports.string().regex(/^[A-Za-z0-9_-]+$/),
-  target: external_exports.object({ schema: identifier3, historySchema: identifier3.optional() }).strict(),
+  target: external_exports.object({ schema: identifier4, historySchema: identifier4.optional() }).strict(),
   source: external_exports.object({
     delivery: external_exports.enum([
       "complete-snapshot",
@@ -26829,7 +26996,7 @@ function render(plan) {
 }
 function expand(request) {
   const standard = request.flow.ingestion?.standard;
-  const expanded = standard === "snapshot-publication@v1" ? expandPublication(request) : standard === sharePointStandard ? expandSharePointIngestion(request.flow, request.providerSource) : standard === queryStandard ? expandQueryIngestion(
+  const expanded = standard === "snapshot-publication@v1" ? expandPublication(request) : standard === sharePointStandard ? expandSharePointIngestion(request.flow, request.providerSource) : standard === saasStandard ? expandSaasIngestion(request.flow, request.providerSource) : standard === queryStandard ? expandQueryIngestion(
     request.flow,
     request.providerSource,
     request.columns

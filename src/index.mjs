@@ -6,6 +6,7 @@ import {
   expandSharePointIngestion,
   sharePointStandard,
 } from "./sharepoint-ingestion.mjs";
+import { expandSaasIngestion, saasStandard } from "./saas-ingestion.mjs";
 import {
   expandPublication,
   validatePublication,
@@ -52,17 +53,19 @@ export function expand(request) {
       ? expandPublication(request)
       : standard === sharePointStandard
         ? expandSharePointIngestion(request.flow, request.providerSource)
-        : standard === queryStandard
-          ? expandQueryIngestion(
-              request.flow,
-              request.providerSource,
-              request.columns,
-            )
-          : expandIngestion(
-              request.flow,
-              request.providerSource,
-              request.columns,
-            );
+        : standard === saasStandard
+          ? expandSaasIngestion(request.flow, request.providerSource)
+          : standard === queryStandard
+            ? expandQueryIngestion(
+                request.flow,
+                request.providerSource,
+                request.columns,
+              )
+            : expandIngestion(
+                request.flow,
+                request.providerSource,
+                request.columns,
+              );
   expanded.steps = expanded.steps.map((step) => ({
     ...step,
     uses: step.select?.some(
