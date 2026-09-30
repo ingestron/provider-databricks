@@ -1,6 +1,6 @@
 apiVersion: ingestron.provider/v1
 id: databricks-native
-version: 3.5.0
+version: 3.6.0
 platform: databricks
 renderer:
   apiVersion: ingestron.provider-generation/v1
@@ -29,6 +29,37 @@ compatibility:
     - connector-runtime-capabilities
     - project-assembly
     - quality-capabilities
+    - source-coverage
+sources:
+  azure-blob:
+    route: native
+    standards:
+      - append-only@v1
+      - snapshot-with-history@v1
+      - change-feed-with-history@v1
+    capabilities:
+      - snapshot
+      - incremental
+    reference:
+      docs: https://learn.microsoft.com/azure/databricks/ingestion/cloud-object-storage/auto-loader/
+      vendorStatus: ga
+      licence: Databricks platform terms; generated files Apache-2.0
+      cost:
+        model: included
+        pricing: https://www.databricks.com/product/pricing/lakeflow-declarative-pipelines
+        note: Runs as Lakeflow pipeline compute in your workspace
+      access:
+        model: subscription
+        url: https://learn.microsoft.com/azure/databricks/
+        note: A Unity Catalog workspace with access to the storage path or Volume
+      auth:
+        - unity-catalog
+      network:
+        - public
+        - private-network
+      maturity: preview
+      verified: 2026-09-30
+      note: JSON and Parquet files in ADLS or Volumes through Auto Loader
 quality:
   library: {}
   standards:
