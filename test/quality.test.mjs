@@ -628,3 +628,28 @@ test("Salesforce, HubSpot and Jira become managed SaaS ingestion objects", () =>
   p.nodes[0].source = { kind: "stripe", connection: "x", object: "customers" };
   assert.throws(() => render(p), /reads salesforce, hubspot, jira/);
 });
+
+test("a relative file path joins the storage binding root, as on ADF and the portable connectors", () => {
+  const p = plan("append-only@v1", expandFor("append-only@v1"));
+  p.bindings.files = { kind: "adls", root: "s3://retail-exports/landing" };
+  p.nodes[0].source = {
+    binding: "files",
+    format: "parquet",
+    path: "v1/orders",
+  };
+  const sql = render(p)["pipelines/sales/orders.sql"].value;
+  assert.match(sql, /s3:\/\/retail-exports\/landing\/v1\/orders/);
+  p.nodes[0].source = {
+    binding: "files",
+    format: "parquet",
+    path: "../orders",
+  };
+  assert.throws(() => render(p), /without traversal/);
+  delete p.bindings.files.root;
+  p.nodes[0].source = {
+    binding: "files",
+    format: "parquet",
+    path: "v1/orders",
+  };
+  assert.throws(() => render(p), /needs root/);
+});

@@ -81,6 +81,29 @@ export function validateIngestionPlan(plan) {
   );
   check(!plan.pending.length, "Resolve all inputs before ingestion generation");
   deploymentSettings(plan);
+  // A relative file path (shared with ADF and the portable connectors) is
+  // joined to the storage binding's root URL.
+  for (const n of plan.nodes) {
+    const s = n.source;
+    if (
+      typeof s?.binding !== "string" ||
+      typeof s.path !== "string" ||
+      /^(abfss:\/\/|s3:\/\/|gs:\/\/|\/Volumes\/)/.test(s.path)
+    )
+      continue;
+    const root = plan.bindings[s.binding]?.root;
+    check(
+      typeof root === "string" &&
+        /^(abfss:\/\/|s3:\/\/|gs:\/\/|\/Volumes\/)[^\s]+[^/]$/.test(root),
+      "A relative source.path needs root (an ADLS, S3, GCS or Volume URL) on its storage binding",
+    );
+    check(
+      !s.path.startsWith("/") &&
+        s.path.split("/").every((p) => p && p !== "." && p !== ".."),
+      "source.path must be relative to the binding root without traversal",
+    );
+    n.source = { ...s, path: `${root}/${s.path}` };
+  }
   const outputs = new Set();
   const internalNames = new Set();
   const pipelineBindings = new Map();
