@@ -6921,6 +6921,21 @@ function validateIngestionPlan(plan) {
   );
   check2(!plan.pending.length, "Resolve all inputs before ingestion generation");
   deploymentSettings(plan);
+  for (const n of plan.nodes) {
+    const s = n.source;
+    if (typeof s?.binding !== "string" || typeof s.path !== "string" || /^(abfss:\/\/|s3:\/\/|gs:\/\/|\/Volumes\/)/.test(s.path))
+      continue;
+    const root = plan.bindings[s.binding]?.root;
+    check2(
+      typeof root === "string" && /^(abfss:\/\/|s3:\/\/|gs:\/\/|\/Volumes\/)[^\s]+[^/]$/.test(root),
+      "A relative source.path needs root (an ADLS, S3, GCS or Volume URL) on its storage binding"
+    );
+    check2(
+      !s.path.startsWith("/") && s.path.split("/").every((p) => p && p !== "." && p !== ".."),
+      "source.path must be relative to the binding root without traversal"
+    );
+    n.source = { ...s, path: `${root}/${s.path}` };
+  }
   const outputs = /* @__PURE__ */ new Set();
   const internalNames = /* @__PURE__ */ new Set();
   const pipelineBindings = /* @__PURE__ */ new Map();

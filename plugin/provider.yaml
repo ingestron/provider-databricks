@@ -69,6 +69,10 @@ sources:
           enum:
             - adls
             - files
+        root:
+          type: string
+          minLength: 6
+          maxLength: 1000
     source:
       binding: "{{connection.binding}}"
   s3:
@@ -110,6 +114,10 @@ sources:
           enum:
             - adls
             - files
+        root:
+          type: string
+          minLength: 6
+          maxLength: 1000
     source:
       binding: "{{connection.binding}}"
   gcs:
@@ -152,6 +160,10 @@ sources:
           enum:
             - adls
             - files
+        root:
+          type: string
+          minLength: 6
+          maxLength: 1000
     source:
       binding: "{{connection.binding}}"
   sql-server:
