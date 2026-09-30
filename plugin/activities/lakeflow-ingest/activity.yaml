@@ -19,6 +19,7 @@ optionsSchema:
             append-only@v1,
             query-ingestion@v1,
             sharepoint-ingestion@v1,
+            saas-ingestion@v1,
           ],
       }
     pipeline: { type: string }
@@ -45,7 +46,8 @@ generator:
 requirements:
   execution: databricks-lakeflow
   features: []
-  sourceKinds: [files, adls, uc-connection, sharepoint]
+  sourceKinds:
+    [files, adls, uc-connection, sharepoint, salesforce, hubspot, jira]
   evidence: offline
 templates:
   - source: ./append.sql.j2

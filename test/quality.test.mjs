@@ -550,3 +550,81 @@ test("SharePoint files become a managed ingestion object with contract schema hi
   p.nodes[0].source.path = "../other";
   assert.throws(() => render(p), /relative folder/);
 });
+
+test("Salesforce, HubSpot and Jira become managed SaaS ingestion objects", () => {
+  const step = expand({
+    providerSource: "test",
+    columns: { orders: columns },
+    flow: {
+      id: "sales",
+      kind: "ingestion",
+      ingestion: {
+        standard: "saas-ingestion@v1",
+        pipeline: "crm",
+        target: { schema: "bronze" },
+      },
+      defaults: { with: {} },
+      tables: { orders: { contract: contract(), steps: {} } },
+    },
+  }).steps[0];
+  assert.equal(step.with.history, "SCD_TYPE_1");
+  const p = plan("saas-ingestion@v1", step);
+  p.nodes[0].with = { ...step.with, schema: "bronze", table: "orders" };
+  const object = (source) => {
+    p.nodes[0].source = source;
+    const pipeline = Object.values(
+      Object.values(render(p)).find((f) => f.value?.resources?.pipelines).value
+        .resources.pipelines,
+    )[0];
+    assert.equal(pipeline.channel, "CURRENT");
+    assert.equal(
+      pipeline.ingestion_definition.connection_name,
+      source.connection,
+    );
+    return pipeline.ingestion_definition.objects[0].table;
+  };
+  assert.deepEqual(
+    object({ kind: "salesforce", connection: "sfdc", object: "Invoice__c" }),
+    {
+      source_schema: "objects",
+      source_table: "Invoice__c",
+      destination_catalog: "retail",
+      destination_schema: "bronze",
+      destination_table: "orders",
+      table_configuration: {
+        scd_type: "SCD_TYPE_1",
+        include_columns: ["order_id", "status", "amount"],
+      },
+    },
+  );
+  const hubspot = object({
+    kind: "hubspot",
+    connection: "hs",
+    object: "contacts",
+  });
+  assert.deepEqual(
+    [hubspot.source_schema, hubspot.source_table],
+    ["default", "contacts"],
+  );
+  const jira = object({ kind: "jira", connection: "jira", object: "issues" });
+  assert.deepEqual(
+    [jira.source_schema, jira.source_table],
+    ["default", "issues"],
+  );
+  p.nodes[0].source = { kind: "jira", connection: "jira", object: "tickets" };
+  assert.throws(() => render(p), /Jira object must be one of/);
+  p.nodes[0].source = {
+    kind: "hubspot",
+    connection: "hs",
+    object: "CRM.Objects.Contacts",
+  };
+  assert.throws(() => render(p), /HubSpot object must be one of/);
+  p.nodes[0].source = {
+    kind: "salesforce",
+    connection: "sfdc",
+    object: "Account; DROP",
+  };
+  assert.throws(() => render(p), /Salesforce object API name/);
+  p.nodes[0].source = { kind: "stripe", connection: "x", object: "customers" };
+  assert.throws(() => render(p), /reads salesforce, hubspot, jira/);
+});

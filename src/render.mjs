@@ -10,7 +10,12 @@ import {
   sharePointStandard,
   validateSharePointNode,
 } from "./sharepoint-ingestion.mjs";
-const managedStandards = [queryStandard, sharePointStandard];
+import {
+  saasObject,
+  saasStandard,
+  validateSaasNode,
+} from "./saas-ingestion.mjs";
+const managedStandards = [queryStandard, sharePointStandard, saasStandard];
 const check = (ok, message) => {
   if (!ok) throw new Error(message);
 };
@@ -134,6 +139,7 @@ export function validateIngestionPlan(plan) {
         "Use flow.ingestion to select lakeflow-ingest",
       );
       if (n.with.standard === queryStandard) validateQueryNode(n);
+      else if (n.with.standard === saasStandard) validateSaasNode(n);
       else validateSharePointNode(n);
     } else if (kind(n) === "lakeflow-ingest") {
       check(
@@ -287,7 +293,9 @@ export function renderIngestion(plan) {
               },
               destination.catalog,
             )
-          : sharePointObject(n.source, n.columns, destination),
+          : n.with.standard === saasStandard
+            ? saasObject(n.source, n.columns, n.with.history, destination)
+            : sharePointObject(n.source, n.columns, destination),
       ];
       if (n.with.standard === sharePointStandard) group.channel = "PREVIEW";
       continue;

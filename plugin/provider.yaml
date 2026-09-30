@@ -1,6 +1,6 @@
 apiVersion: ingestron.provider/v1
 id: databricks-native
-version: 3.6.0
+version: 3.7.0
 platform: databricks
 renderer:
   apiVersion: ingestron.provider-generation/v1
@@ -413,6 +413,140 @@ sources:
       kind: sharepoint
       connection: "{{binding.connection}}"
       site: "{{binding.site}}"
+  salesforce:
+    route: native
+    standards:
+      - saas-ingestion@v1
+    capabilities:
+      - snapshot
+      - incremental
+    reference:
+      docs: https://learn.microsoft.com/azure/databricks/ingestion/lakeflow-connect/salesforce-pipeline
+      vendorStatus: ga
+      licence: Databricks platform terms; generated files Apache-2.0
+      cost:
+        model: separately-billed
+        pricing: https://www.databricks.com/product/pricing/lakeflow-connect
+        note:
+          Lakeflow Connect ingestion on serverless compute is billed as its own
+          usage
+      access:
+        model: subscription
+        url: https://learn.microsoft.com/azure/databricks/ingestion/lakeflow-connect/salesforce-connection
+        note:
+          A Unity Catalog workspace with serverless compute and an OAuth connection
+          to Salesforce
+      auth:
+        - oauth-u2m
+      network:
+        - public
+      maturity: preview
+      verified: 2026-09-30
+      note:
+        GA; any standard or custom object API name, read from the objects schema.
+        Salesforce API limits apply
+    bindingSchema:
+      type: object
+      required:
+        - connection
+      properties:
+        connection:
+          type: string
+          minLength: 1
+          maxLength: 255
+      additionalProperties: false
+    source:
+      kind: salesforce
+      connection: "{{binding.connection}}"
+  hubspot:
+    route: native
+    standards:
+      - saas-ingestion@v1
+    capabilities:
+      - snapshot
+      - incremental
+    reference:
+      docs: https://learn.microsoft.com/azure/databricks/ingestion/lakeflow-connect/hubspot-pipeline
+      vendorStatus: ga
+      licence: Databricks platform terms; generated files Apache-2.0
+      cost:
+        model: separately-billed
+        pricing: https://www.databricks.com/product/pricing/lakeflow-connect
+        note:
+          Lakeflow Connect ingestion on serverless compute is billed as its own
+          usage
+      access:
+        model: subscription
+        url: https://learn.microsoft.com/azure/databricks/ingestion/lakeflow-connect/hubspot-connection
+        note:
+          A Unity Catalog workspace with serverless compute and an OAuth connection
+          to HubSpot
+      auth:
+        - oauth-u2m
+      network:
+        - public
+      maturity: preview
+      verified: 2026-09-30
+      note: Marketing Hub tables are GA; CRM Hub tables are Beta behind the
+        hubspot_connector_crm_objects workspace preview
+    bindingSchema:
+      type: object
+      required:
+        - connection
+      properties:
+        connection:
+          type: string
+          minLength: 1
+          maxLength: 255
+      additionalProperties: false
+    source:
+      kind: hubspot
+      connection: "{{binding.connection}}"
+  jira:
+    route: native
+    standards:
+      - saas-ingestion@v1
+    capabilities:
+      - snapshot
+      - incremental
+    reference:
+      docs: https://learn.microsoft.com/azure/databricks/ingestion/lakeflow-connect/jira-pipeline
+      vendorStatus: beta
+      licence: Databricks platform terms; generated files Apache-2.0
+      cost:
+        model: separately-billed
+        pricing: https://www.databricks.com/product/pricing/lakeflow-connect
+        note:
+          Lakeflow Connect ingestion on serverless compute is billed as its own
+          usage
+      access:
+        model: subscription
+        url: https://learn.microsoft.com/azure/databricks/ingestion/lakeflow-connect/jira-connection
+        note:
+          A Unity Catalog workspace with serverless compute and an OAuth connection
+          to Jira
+      auth:
+        - oauth-u2m
+      network:
+        - public
+      maturity: preview
+      verified: 2026-09-30
+      note:
+        Beta; tables from the documented list; the issues table keeps deleted
+        issues unless audit logs are enabled (paid Jira plan)
+    bindingSchema:
+      type: object
+      required:
+        - connection
+      properties:
+        connection:
+          type: string
+          minLength: 1
+          maxLength: 255
+      additionalProperties: false
+    source:
+      kind: jira
+      connection: "{{binding.connection}}"
 quality:
   library: {}
   standards:
@@ -454,6 +588,9 @@ standards:
     description: Database tables through a Lakeflow Connect query-based connector
   - id: sharepoint-ingestion@v1
     description: SharePoint files and lists through the Lakeflow Connect managed connector
+  - id: saas-ingestion@v1
+    description: Salesforce, HubSpot and Jira tables through Lakeflow Connect
+      managed connectors
   - id: snapshot-publication@v1
     description: Verify immutable Parquet snapshots and conditionally publish an
       ordered delivery index
