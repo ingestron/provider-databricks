@@ -521,7 +521,7 @@ test("SharePoint files become a managed ingestion object with contract schema hi
     {
       sharepoint_options: {
         entity_type: "FILE",
-        url: "https://contoso.sharepoint.com/sites/finance/Shared Documents/orders",
+        url: "https://contoso.sharepoint.com/sites/finance/Shared%20Documents/orders",
         file_ingestion_options: {
           format: "CSV",
           schema_evolution_mode: "NONE",

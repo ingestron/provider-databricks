@@ -6677,6 +6677,7 @@ function validateSharePointNode(n) {
   ["file", "list"].includes(s.entity ?? "file") || fail2("entity must be file or list");
   (s.entity ?? "file") === "list" ? s.format === void 0 || fail2("format applies to files only") : formats.includes(s.format) || fail2(`format must be one of ${formats.join(", ")}`);
 }
+var encodePath = (path) => path.split("/").map((segment) => encodeURIComponent(decodeURIComponent(segment))).join("/");
 var hint = (c) => "`" + c.name + "` " + c.type;
 function sharePointObject(s, columns, destination) {
   const list = (s.entity ?? "file") === "list";
@@ -6690,7 +6691,7 @@ function sharePointObject(s, columns, destination) {
         connector_options: {
           sharepoint_options: {
             entity_type: list ? "LIST" : "FILE",
-            url: `${s.site}/${s.path}`,
+            url: `${s.site}/${encodePath(s.path)}`,
             ...list ? {} : {
               file_ingestion_options: {
                 format: s.format.toUpperCase(),

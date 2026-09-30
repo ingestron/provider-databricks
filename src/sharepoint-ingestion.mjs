@@ -86,6 +86,13 @@ export function validateSharePointNode(n) {
       fail(`format must be one of ${formats.join(", ")}`);
 }
 
+/** Encodes each path segment once, whether or not the user already encoded it. */
+const encodePath = (path) =>
+  path
+    .split("/")
+    .map((segment) => encodeURIComponent(decodeURIComponent(segment)))
+    .join("/");
+
 /** Spark types for schema hints; contract types are already validated. */
 const hint = (c) => "`" + c.name + "` " + c.type;
 
@@ -102,7 +109,7 @@ export function sharePointObject(s, columns, destination) {
         connector_options: {
           sharepoint_options: {
             entity_type: list ? "LIST" : "FILE",
-            url: `${s.site}/${s.path}`,
+            url: `${s.site}/${encodePath(s.path)}`,
             ...(list
               ? {}
               : {
