@@ -1,5 +1,16 @@
 import { deploymentSettings, renderResources } from "./resources.mjs";
 import { templateRenderer } from "./templates/engine.mjs";
+import {
+  queryObject,
+  queryStandard,
+  validateQueryNode,
+} from "./query-ingestion.mjs";
+import {
+  sharePointObject,
+  sharePointStandard,
+  validateSharePointNode,
+} from "./sharepoint-ingestion.mjs";
+const managedStandards = [queryStandard, sharePointStandard];
 const check = (ok, message) => {
   if (!ok) throw new Error(message);
 };
@@ -114,7 +125,17 @@ export function validateIngestionPlan(plan) {
     relation(name);
     check(!outputs.has(name), `Duplicate dataset target ${name}`);
     outputs.add(name);
-    if (kind(n) === "lakeflow-ingest") {
+    if (
+      kind(n) === "lakeflow-ingest" &&
+      managedStandards.includes(n.with.standard)
+    ) {
+      check(
+        plan.flows.find((f) => f.id === n.flow)?.ingestion,
+        "Use flow.ingestion to select lakeflow-ingest",
+      );
+      if (n.with.standard === queryStandard) validateQueryNode(n);
+      else validateSharePointNode(n);
+    } else if (kind(n) === "lakeflow-ingest") {
       check(
         plan.flows.find((f) => f.id === n.flow)?.ingestion,
         "Use flow.ingestion to select lakeflow-ingest",
@@ -126,8 +147,8 @@ export function validateIngestionPlan(plan) {
       );
       check(
         typeof s.path === "string" &&
-          /^(abfss:\/\/|\/Volumes\/).+[^/]$/.test(s.path),
-        "source.path must be a cloud or Volume directory without a trailing slash",
+          /^(abfss:\/\/|s3:\/\/|gs:\/\/|\/Volumes\/).+[^/]$/.test(s.path),
+        "source.path must be an ADLS, S3, GCS or Volume directory without a trailing slash",
       );
       check(
         ["json", "parquet"].includes(s.format),
@@ -243,6 +264,32 @@ export function renderIngestion(plan) {
       });
       put(stem + ".sql", "text", text);
       group.sources.push(stem + ".sql");
+      continue;
+    }
+    if (managedStandards.includes(n.with.standard)) {
+      // Lakeflow Connect reads the source; the pipeline resource carries it.
+      const destination = {
+        catalog: plan.bindings[n.binding].catalog,
+        schema: n.with.schema ?? n.with.target.schema,
+        table: n.with.table,
+      };
+      group.managed = [
+        ...(group.managed ?? []),
+        n.with.standard === queryStandard
+          ? queryObject(
+              {
+                ...n.source,
+                history: n.with.history,
+                keys: n.with.keys,
+                cursor: n.with.cursor,
+                destinationSchema: destination.schema,
+                destinationTable: destination.table,
+              },
+              destination.catalog,
+            )
+          : sharePointObject(n.source, n.columns, destination),
+      ];
+      if (n.with.standard === sharePointStandard) group.channel = "PREVIEW";
       continue;
     }
     const w = n.with,

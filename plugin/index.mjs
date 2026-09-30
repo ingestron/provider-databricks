@@ -12,8 +12,8 @@ var __commonJS = (cb, mod) => function __require() {
   }
 };
 var __export = (target2, all) => {
-  for (var name in all)
-    __defProp(target2, name, { get: all[name], enumerable: true });
+  for (var name2 in all)
+    __defProp(target2, name2, { get: all[name2], enumerable: true });
 };
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
@@ -68,9 +68,9 @@ var require_nunjucks = __commonJS({
           }
           __webpack_require__.m = modules;
           __webpack_require__.c = installedModules;
-          __webpack_require__.d = function(exports2, name, getter) {
-            if (!__webpack_require__.o(exports2, name)) {
-              Object.defineProperty(exports2, name, {
+          __webpack_require__.d = function(exports2, name2, getter) {
+            if (!__webpack_require__.o(exports2, name2)) {
+              Object.defineProperty(exports2, name2, {
                 /******/
                 configurable: false,
                 /******/
@@ -432,15 +432,15 @@ var require_nunjucks = __commonJS({
               var key = _toPrimitive(arg, "string");
               return typeof key === "symbol" ? key : String(key);
             }
-            function _toPrimitive(input2, hint) {
+            function _toPrimitive(input2, hint2) {
               if (typeof input2 !== "object" || input2 === null) return input2;
               var prim = input2[Symbol.toPrimitive];
               if (prim !== void 0) {
-                var res = prim.call(input2, hint || "default");
+                var res = prim.call(input2, hint2 || "default");
                 if (typeof res !== "object") return res;
                 throw new TypeError("@@toPrimitive must return a primitive value.");
               }
-              return (hint === "string" ? String : Number)(input2);
+              return (hint2 === "string" ? String : Number)(input2);
             }
             function _inheritsLoose(subClass, superClass) {
               subClass.prototype = Object.create(superClass.prototype);
@@ -468,7 +468,7 @@ var require_nunjucks = __commonJS({
                 return res;
               };
             }
-            function extendClass(cls, name, props) {
+            function extendClass(cls, name2, props) {
               props = props || {};
               lib.keys(props).forEach(function(k) {
                 props[k] = parentWrap(cls.prototype[k], props[k]);
@@ -481,7 +481,7 @@ var require_nunjucks = __commonJS({
                 _createClass(subclass2, [{
                   key: "typename",
                   get: function get() {
-                    return name;
+                    return name2;
                   }
                 }]);
                 return subclass2;
@@ -496,12 +496,12 @@ var require_nunjucks = __commonJS({
               var _proto = Obj2.prototype;
               _proto.init = function init() {
               };
-              Obj2.extend = function extend2(name, props) {
-                if (typeof name === "object") {
-                  props = name;
-                  name = "anonymous";
+              Obj2.extend = function extend2(name2, props) {
+                if (typeof name2 === "object") {
+                  props = name2;
+                  name2 = "anonymous";
                 }
-                return extendClass(this, name, props);
+                return extendClass(this, name2, props);
               };
               _createClass(Obj2, [{
                 key: "typename",
@@ -523,12 +523,12 @@ var require_nunjucks = __commonJS({
               var _proto2 = EmitterObj2.prototype;
               _proto2.init = function init() {
               };
-              EmitterObj2.extend = function extend2(name, props) {
-                if (typeof name === "object") {
-                  props = name;
-                  name = "anonymous";
+              EmitterObj2.extend = function extend2(name2, props) {
+                if (typeof name2 === "object") {
+                  props = name2;
+                  name2 = "anonymous";
                 }
-                return extendClass(this, name, props);
+                return extendClass(this, name2, props);
               };
               _createClass(EmitterObj2, [{
                 key: "typename",
@@ -558,13 +558,13 @@ var require_nunjucks = __commonJS({
                 this.isolateWrites = isolateWrites;
               }
               var _proto = Frame2.prototype;
-              _proto.set = function set2(name, val, resolveUp) {
-                var parts = name.split(".");
+              _proto.set = function set2(name2, val, resolveUp) {
+                var parts = name2.split(".");
                 var obj = this.variables;
                 var frame = this;
                 if (resolveUp) {
                   if (frame = this.resolve(parts[0], true)) {
-                    frame.set(name, val);
+                    frame.set(name2, val);
                     return;
                   }
                 }
@@ -577,28 +577,28 @@ var require_nunjucks = __commonJS({
                 }
                 obj[parts[parts.length - 1]] = val;
               };
-              _proto.get = function get(name) {
-                var val = this.variables[name];
+              _proto.get = function get(name2) {
+                var val = this.variables[name2];
                 if (val !== void 0) {
                   return val;
                 }
                 return null;
               };
-              _proto.lookup = function lookup(name) {
+              _proto.lookup = function lookup(name2) {
                 var p = this.parent;
-                var val = this.variables[name];
+                var val = this.variables[name2];
                 if (val !== void 0) {
                   return val;
                 }
-                return p && p.lookup(name);
+                return p && p.lookup(name2);
               };
-              _proto.resolve = function resolve(name, forWrite) {
+              _proto.resolve = function resolve(name2, forWrite) {
                 var p = forWrite && this.isolateWrites ? void 0 : this.parent;
-                var val = this.variables[name];
+                var val = this.variables[name2];
                 if (val !== void 0) {
                   return this;
                 }
-                return p && p.resolve(name);
+                return p && p.resolve(name2);
               };
               _proto.push = function push(isolateWrites) {
                 return new Frame2(this, isolateWrites);
@@ -736,17 +736,17 @@ var require_nunjucks = __commonJS({
               }
               return obj[val];
             }
-            function callWrap(obj, name, context, args) {
+            function callWrap(obj, name2, context, args) {
               if (!obj) {
-                throw new Error("Unable to call `" + name + "`, which is undefined or falsey");
+                throw new Error("Unable to call `" + name2 + "`, which is undefined or falsey");
               } else if (typeof obj !== "function") {
-                throw new Error("Unable to call `" + name + "`, which is not a function");
+                throw new Error("Unable to call `" + name2 + "`, which is not a function");
               }
               return obj.apply(context, args);
             }
-            function contextOrFrameLookup(context, frame, name) {
-              var val = frame.lookup(name);
-              return val !== void 0 ? val : context.lookup(name);
+            function contextOrFrameLookup(context, frame, name2) {
+              var val = frame.lookup(name2);
+              return val !== void 0 ? val : context.lookup(name2);
             }
             function handleError(error61, lineno, colno) {
               if (error61.lineno) {
@@ -883,15 +883,15 @@ var require_nunjucks = __commonJS({
               var key = _toPrimitive(arg, "string");
               return typeof key === "symbol" ? key : String(key);
             }
-            function _toPrimitive(input2, hint) {
+            function _toPrimitive(input2, hint2) {
               if (typeof input2 !== "object" || input2 === null) return input2;
               var prim = input2[Symbol.toPrimitive];
               if (prim !== void 0) {
-                var res = prim.call(input2, hint || "default");
+                var res = prim.call(input2, hint2 || "default");
                 if (typeof res !== "object") return res;
                 throw new TypeError("@@toPrimitive must return a primitive value.");
               }
-              return (hint === "string" ? String : Number)(input2);
+              return (hint2 === "string" ? String : Number)(input2);
             }
             function _inheritsLoose(subClass, superClass) {
               subClass.prototype = Object.create(superClass.prototype);
@@ -1289,7 +1289,7 @@ var require_nunjucks = __commonJS({
                 this.inBlock = false;
                 this.throwOnUndefined = throwOnUndefined;
               };
-              _proto.fail = function fail2(msg, lineno, colno) {
+              _proto.fail = function fail4(msg, lineno, colno) {
                 if (lineno !== void 0) {
                   lineno += 1;
                 }
@@ -1323,10 +1323,10 @@ var require_nunjucks = __commonJS({
                   return _this._emitLine(line);
                 });
               };
-              _proto._emitFuncBegin = function _emitFuncBegin(node2, name) {
+              _proto._emitFuncBegin = function _emitFuncBegin(node2, name2) {
                 this.buffer = "output";
                 this._scopeClosers = "";
-                this._emitLine("function " + name + "(env, context, frame, runtime, cb) {");
+                this._emitLine("function " + name2 + "(env, context, frame, runtime, cb) {");
                 this._emitLine("var lineno = " + node2.lineno + ";");
                 this._emitLine("var colno = " + node2.colno + ";");
                 this._emitLine("var " + this.buffer + ' = "";');
@@ -1480,12 +1480,12 @@ var require_nunjucks = __commonJS({
                 }
               };
               _proto.compileSymbol = function compileSymbol(node2, frame) {
-                var name = node2.value;
-                var v = frame.lookup(name);
+                var name2 = node2.value;
+                var v = frame.lookup(name2);
                 if (v) {
                   this._emit(v);
                 } else {
-                  this._emit('runtime.contextOrFrameLookup(context, frame, "' + name + '")');
+                  this._emit('runtime.contextOrFrameLookup(context, frame, "' + name2 + '")');
                 }
               };
               _proto.compileGroup = function compileGroup(node2, frame) {
@@ -1632,18 +1632,18 @@ var require_nunjucks = __commonJS({
                 this._emit(")");
               };
               _proto.compileFilter = function compileFilter(node2, frame) {
-                var name = node2.name;
-                this.assertType(name, nodes.Symbol);
-                this._emit('env.getFilter("' + name.value + '").call(context, ');
+                var name2 = node2.name;
+                this.assertType(name2, nodes.Symbol);
+                this._emit('env.getFilter("' + name2.value + '").call(context, ');
                 this._compileAggregate(node2.args, frame);
                 this._emit(")");
               };
               _proto.compileFilterAsync = function compileFilterAsync(node2, frame) {
-                var name = node2.name;
+                var name2 = node2.name;
                 var symbol2 = node2.symbol.value;
-                this.assertType(name, nodes.Symbol);
+                this.assertType(name2, nodes.Symbol);
                 frame.set(symbol2, symbol2);
-                this._emit('env.getFilter("' + name.value + '").call(context, ');
+                this._emit('env.getFilter("' + name2.value + '").call(context, ');
                 this._compileAggregate(node2.args, frame);
                 this._emitLine(", " + this._makeCallback(symbol2));
                 this._addScopeLevel();
@@ -1657,8 +1657,8 @@ var require_nunjucks = __commonJS({
                 var _this6 = this;
                 var ids = [];
                 node2.targets.forEach(function(target2) {
-                  var name = target2.value;
-                  var id2 = frame.lookup(name);
+                  var name2 = target2.value;
+                  var id2 = frame.lookup(name2);
                   if (id2 === null || id2 === void 0) {
                     id2 = _this6._tmpid();
                     _this6._emitLine("var " + id2 + ";");
@@ -1676,14 +1676,14 @@ var require_nunjucks = __commonJS({
                 }
                 node2.targets.forEach(function(target2, i) {
                   var id2 = ids[i];
-                  var name = target2.value;
-                  _this6._emitLine('frame.set("' + name + '", ' + id2 + ", true);");
+                  var name2 = target2.value;
+                  _this6._emitLine('frame.set("' + name2 + '", ' + id2 + ", true);");
                   _this6._emitLine("if(frame.topLevel) {");
-                  _this6._emitLine('context.setVariable("' + name + '", ' + id2 + ");");
+                  _this6._emitLine('context.setVariable("' + name2 + '", ' + id2 + ");");
                   _this6._emitLine("}");
-                  if (name.charAt(0) !== "_") {
+                  if (name2.charAt(0) !== "_") {
                     _this6._emitLine("if(frame.topLevel) {");
-                    _this6._emitLine('context.addExport("' + name + '", ' + id2 + ");");
+                    _this6._emitLine('context.addExport("' + name2 + '", ' + id2 + ");");
                     _this6._emitLine("}");
                   }
                 });
@@ -1849,12 +1849,12 @@ var require_nunjucks = __commonJS({
                 if (node2.name instanceof nodes.Array) {
                   var arrayLen = node2.name.children.length;
                   this._emit("runtime." + asyncMethod + "(" + arr + ", " + arrayLen + ", function(");
-                  node2.name.children.forEach(function(name) {
-                    _this11._emit(name.value + ",");
+                  node2.name.children.forEach(function(name2) {
+                    _this11._emit(name2.value + ",");
                   });
                   this._emit(i + "," + len + ",next) {");
-                  node2.name.children.forEach(function(name) {
-                    var id3 = name.value;
+                  node2.name.children.forEach(function(name2) {
+                    var id3 = name2.value;
                     frame.set(id3, id3);
                     _this11._emitLine('frame.set("' + id3 + '", ' + id3 + ");");
                   });
@@ -1931,10 +1931,10 @@ var require_nunjucks = __commonJS({
                 });
                 if (kwargs) {
                   kwargs.children.forEach(function(pair) {
-                    var name = pair.key.value;
-                    _this12._emit('frame.set("' + name + '", ');
-                    _this12._emit('Object.prototype.hasOwnProperty.call(kwargs, "' + name + '")');
-                    _this12._emit(' ? kwargs["' + name + '"] : ');
+                    var name2 = pair.key.value;
+                    _this12._emit('frame.set("' + name2 + '", ');
+                    _this12._emit('Object.prototype.hasOwnProperty.call(kwargs, "' + name2 + '")');
+                    _this12._emit(' ? kwargs["' + name2 + '"] : ');
                     _this12._compileExpression(pair.value, currFrame);
                     _this12._emit(");");
                   });
@@ -1951,15 +1951,15 @@ var require_nunjucks = __commonJS({
               };
               _proto.compileMacro = function compileMacro(node2, frame) {
                 var funcId = this._compileMacro(node2);
-                var name = node2.name.value;
-                frame.set(name, funcId);
+                var name2 = node2.name.value;
+                frame.set(name2, funcId);
                 if (frame.parent) {
-                  this._emitLine('frame.set("' + name + '", ' + funcId + ");");
+                  this._emitLine('frame.set("' + name2 + '", ' + funcId + ");");
                 } else {
                   if (node2.name.value.charAt(0) !== "_") {
-                    this._emitLine('context.addExport("' + name + '");');
+                    this._emitLine('context.addExport("' + name2 + '");');
                   }
-                  this._emitLine('context.setVariable("' + name + '", ' + funcId + ");");
+                  this._emitLine('context.setVariable("' + name2 + '", ' + funcId + ");");
                 }
               };
               _proto.compileCaller = function compileCaller(node2, frame) {
@@ -1998,20 +1998,20 @@ var require_nunjucks = __commonJS({
                 this._emitLine(importedId + ".getExported(" + (node2.withContext ? "context.getVariables(), frame, " : "") + this._makeCallback(importedId));
                 this._addScopeLevel();
                 node2.names.children.forEach(function(nameNode) {
-                  var name;
+                  var name2;
                   var alias;
                   var id2 = _this13._tmpid();
                   if (nameNode instanceof nodes.Pair) {
-                    name = nameNode.key.value;
+                    name2 = nameNode.key.value;
                     alias = nameNode.value.value;
                   } else {
-                    name = nameNode.value;
-                    alias = name;
+                    name2 = nameNode.value;
+                    alias = name2;
                   }
-                  _this13._emitLine("if(Object.prototype.hasOwnProperty.call(" + importedId + ', "' + name + '")) {');
-                  _this13._emitLine("var " + id2 + " = " + importedId + "." + name + ";");
+                  _this13._emitLine("if(Object.prototype.hasOwnProperty.call(" + importedId + ', "' + name2 + '")) {');
+                  _this13._emitLine("var " + id2 + " = " + importedId + "." + name2 + ";");
                   _this13._emitLine("} else {");
-                  _this13._emitLine(`cb(new Error("cannot import '` + name + `'")); return;`);
+                  _this13._emitLine(`cb(new Error("cannot import '` + name2 + `'")); return;`);
                   _this13._emitLine("}");
                   frame.set(alias, id2);
                   if (frame.parent) {
@@ -2035,10 +2035,10 @@ var require_nunjucks = __commonJS({
                 this._addScopeLevel();
               };
               _proto.compileSuper = function compileSuper(node2, frame) {
-                var name = node2.blockName.value;
+                var name2 = node2.blockName.value;
                 var id2 = node2.symbol.value;
                 var cb = this._makeCallback(id2);
-                this._emitLine('context.getSuper(env, "' + name + '", b_' + name + ", frame, runtime, " + cb);
+                this._emitLine('context.getSuper(env, "' + name2 + '", b_' + name2 + ", frame, runtime, " + cb);
                 this._emitLine(id2 + " = runtime.markSafe(" + id2 + ");");
                 this._addScopeLevel();
                 frame.set(id2, id2);
@@ -2131,12 +2131,12 @@ var require_nunjucks = __commonJS({
                 var blockNames = [];
                 var blocks = node2.findAll(nodes.Block);
                 blocks.forEach(function(block, i) {
-                  var name = block.name.value;
-                  if (blockNames.indexOf(name) !== -1) {
-                    throw new Error('Block "' + name + '" defined more than once.');
+                  var name2 = block.name.value;
+                  if (blockNames.indexOf(name2) !== -1) {
+                    throw new Error('Block "' + name2 + '" defined more than once.');
                   }
-                  blockNames.push(name);
-                  _this16._emitFuncBegin(block, "b_" + name);
+                  blockNames.push(name2);
+                  _this16._emitFuncBegin(block, "b_" + name2);
                   var tmpFrame = new Frame();
                   _this16._emitLine("var frame = frame.push(true);");
                   _this16.compile(block.body, tmpFrame);
@@ -2163,11 +2163,11 @@ var require_nunjucks = __commonJS({
               return Compiler2;
             })(Obj);
             module2.exports = {
-              compile: function compile2(src, asyncFilters, extensions, name, opts) {
+              compile: function compile2(src, asyncFilters, extensions, name2, opts) {
                 if (opts === void 0) {
                   opts = {};
                 }
-                var c = new Compiler(name, opts.throwOnUndefined);
+                var c = new Compiler(name2, opts.throwOnUndefined);
                 var preprocessors = (extensions || []).map(function(ext) {
                   return ext.preprocess;
                 }).filter(function(f) {
@@ -2176,7 +2176,7 @@ var require_nunjucks = __commonJS({
                 var processedSrc = preprocessors.reduce(function(s, processor) {
                   return processor(s);
                 }, src);
-                c.compile(transformer.transform(parser.parse(processedSrc, extensions, opts), asyncFilters, name));
+                c.compile(transformer.transform(parser.parse(processedSrc, extensions, opts), asyncFilters, name2));
                 return c.getCode();
               },
               Compiler
@@ -2295,12 +2295,12 @@ var require_nunjucks = __commonJS({
                 this.extensions = {};
                 this.extensionsList = [];
                 lib._entries(filters).forEach(function(_ref) {
-                  var name = _ref[0], filter = _ref[1];
-                  return _this.addFilter(name, filter);
+                  var name2 = _ref[0], filter = _ref[1];
+                  return _this.addFilter(name2, filter);
                 });
                 lib._entries(tests).forEach(function(_ref2) {
-                  var name = _ref2[0], test = _ref2[1];
-                  return _this.addTest(name, test);
+                  var name2 = _ref2[0], test = _ref2[1];
+                  return _this.addTest(name2, test);
                 });
               };
               _proto._initLoaders = function _initLoaders() {
@@ -2308,12 +2308,12 @@ var require_nunjucks = __commonJS({
                 this.loaders.forEach(function(loader) {
                   loader.cache = {};
                   if (typeof loader.on === "function") {
-                    loader.on("update", function(name, fullname) {
-                      loader.cache[name] = null;
-                      _this2.emit("update", name, fullname, loader);
+                    loader.on("update", function(name2, fullname) {
+                      loader.cache[name2] = null;
+                      _this2.emit("update", name2, fullname, loader);
                     });
-                    loader.on("load", function(name, source2) {
-                      _this2.emit("load", name, source2, loader);
+                    loader.on("load", function(name2, source2) {
+                      _this2.emit("load", name2, source2, loader);
                     });
                   }
                 });
@@ -2323,70 +2323,70 @@ var require_nunjucks = __commonJS({
                   loader.cache = {};
                 });
               };
-              _proto.addExtension = function addExtension(name, extension) {
-                extension.__name = name;
-                this.extensions[name] = extension;
+              _proto.addExtension = function addExtension(name2, extension) {
+                extension.__name = name2;
+                this.extensions[name2] = extension;
                 this.extensionsList.push(extension);
                 return this;
               };
-              _proto.removeExtension = function removeExtension(name) {
-                var extension = this.getExtension(name);
+              _proto.removeExtension = function removeExtension(name2) {
+                var extension = this.getExtension(name2);
                 if (!extension) {
                   return;
                 }
                 this.extensionsList = lib.without(this.extensionsList, extension);
-                delete this.extensions[name];
+                delete this.extensions[name2];
               };
-              _proto.getExtension = function getExtension(name) {
-                return this.extensions[name];
+              _proto.getExtension = function getExtension(name2) {
+                return this.extensions[name2];
               };
-              _proto.hasExtension = function hasExtension(name) {
-                return !!this.extensions[name];
+              _proto.hasExtension = function hasExtension(name2) {
+                return !!this.extensions[name2];
               };
-              _proto.addGlobal = function addGlobal(name, value) {
-                this.globals[name] = value;
+              _proto.addGlobal = function addGlobal(name2, value) {
+                this.globals[name2] = value;
                 return this;
               };
-              _proto.getGlobal = function getGlobal(name) {
-                if (typeof this.globals[name] === "undefined") {
-                  throw new Error("global not found: " + name);
+              _proto.getGlobal = function getGlobal(name2) {
+                if (typeof this.globals[name2] === "undefined") {
+                  throw new Error("global not found: " + name2);
                 }
-                return this.globals[name];
+                return this.globals[name2];
               };
-              _proto.addFilter = function addFilter(name, func, async) {
+              _proto.addFilter = function addFilter(name2, func, async) {
                 var wrapped = func;
                 if (async) {
-                  this.asyncFilters.push(name);
+                  this.asyncFilters.push(name2);
                 }
-                this.filters[name] = wrapped;
+                this.filters[name2] = wrapped;
                 return this;
               };
-              _proto.getFilter = function getFilter(name) {
-                if (!this.filters[name]) {
-                  throw new Error("filter not found: " + name);
+              _proto.getFilter = function getFilter(name2) {
+                if (!this.filters[name2]) {
+                  throw new Error("filter not found: " + name2);
                 }
-                return this.filters[name];
+                return this.filters[name2];
               };
-              _proto.addTest = function addTest(name, func) {
-                this.tests[name] = func;
+              _proto.addTest = function addTest(name2, func) {
+                this.tests[name2] = func;
                 return this;
               };
-              _proto.getTest = function getTest(name) {
-                if (!this.tests[name]) {
-                  throw new Error("test not found: " + name);
+              _proto.getTest = function getTest(name2) {
+                if (!this.tests[name2]) {
+                  throw new Error("test not found: " + name2);
                 }
-                return this.tests[name];
+                return this.tests[name2];
               };
               _proto.resolveTemplate = function resolveTemplate(loader, parentName, filename) {
                 var isRelative = loader.isRelative && parentName ? loader.isRelative(filename) : false;
                 return isRelative && loader.resolve ? loader.resolve(parentName, filename) : filename;
               };
-              _proto.getTemplate = function getTemplate(name, eagerCompile, parentName, ignoreMissing, cb) {
+              _proto.getTemplate = function getTemplate(name2, eagerCompile, parentName, ignoreMissing, cb) {
                 var _this3 = this;
                 var that = this;
                 var tmpl = null;
-                if (name && name.raw) {
-                  name = name.raw;
+                if (name2 && name2.raw) {
+                  name2 = name2.raw;
                 }
                 if (lib.isFunction(parentName)) {
                   cb = parentName;
@@ -2397,14 +2397,14 @@ var require_nunjucks = __commonJS({
                   cb = eagerCompile;
                   eagerCompile = false;
                 }
-                if (name instanceof Template) {
-                  tmpl = name;
-                } else if (typeof name !== "string") {
-                  throw new Error("template names must be a string: " + name);
+                if (name2 instanceof Template) {
+                  tmpl = name2;
+                } else if (typeof name2 !== "string") {
+                  throw new Error("template names must be a string: " + name2);
                 } else {
                   for (var i = 0; i < this.loaders.length; i++) {
                     var loader = this.loaders[i];
-                    tmpl = loader.cache[this.resolveTemplate(loader, parentName, name)];
+                    tmpl = loader.cache[this.resolveTemplate(loader, parentName, name2)];
                     if (tmpl) {
                       break;
                     }
@@ -2424,7 +2424,7 @@ var require_nunjucks = __commonJS({
                 var syncResult;
                 var createTemplate = function createTemplate2(err, info) {
                   if (!info && !err && !ignoreMissing) {
-                    err = new Error("template not found: " + name);
+                    err = new Error("template not found: " + name2);
                   }
                   if (err) {
                     if (cb) {
@@ -2440,7 +2440,7 @@ var require_nunjucks = __commonJS({
                   } else {
                     newTmpl = new Template(info.src, _this3, info.path, eagerCompile);
                     if (!info.noCache) {
-                      info.loader.cache[name] = newTmpl;
+                      info.loader.cache[name2] = newTmpl;
                     }
                   }
                   if (cb) {
@@ -2460,11 +2460,11 @@ var require_nunjucks = __commonJS({
                       next();
                     }
                   }
-                  name = that.resolveTemplate(loader2, parentName, name);
+                  name2 = that.resolveTemplate(loader2, parentName, name2);
                   if (loader2.async) {
-                    loader2.getSource(name, handle);
+                    loader2.getSource(name2, handle);
                   } else {
-                    handle(null, loader2.getSource(name));
+                    handle(null, loader2.getSource(name2));
                   }
                 }, createTemplate);
                 return syncResult;
@@ -2472,13 +2472,13 @@ var require_nunjucks = __commonJS({
               _proto.express = function express(app) {
                 return expressApp(this, app);
               };
-              _proto.render = function render2(name, ctx, cb) {
+              _proto.render = function render2(name2, ctx, cb) {
                 if (lib.isFunction(ctx)) {
                   cb = ctx;
                   ctx = null;
                 }
                 var syncResult = null;
-                this.getTemplate(name, function(err, tmpl) {
+                this.getTemplate(name2, function(err, tmpl) {
                   if (err && cb) {
                     callbackAsap(cb, err);
                   } else if (err) {
@@ -2515,51 +2515,51 @@ var require_nunjucks = __commonJS({
                 this.ctx = lib.extend({}, ctx);
                 this.blocks = {};
                 this.exported = [];
-                lib.keys(blocks).forEach(function(name) {
-                  _this4.addBlock(name, blocks[name]);
+                lib.keys(blocks).forEach(function(name2) {
+                  _this4.addBlock(name2, blocks[name2]);
                 });
               };
-              _proto2.lookup = function lookup(name) {
-                if (name in this.env.globals && !(name in this.ctx)) {
-                  return this.env.globals[name];
+              _proto2.lookup = function lookup(name2) {
+                if (name2 in this.env.globals && !(name2 in this.ctx)) {
+                  return this.env.globals[name2];
                 } else {
-                  return this.ctx[name];
+                  return this.ctx[name2];
                 }
               };
-              _proto2.setVariable = function setVariable(name, val) {
-                this.ctx[name] = val;
+              _proto2.setVariable = function setVariable(name2, val) {
+                this.ctx[name2] = val;
               };
               _proto2.getVariables = function getVariables() {
                 return this.ctx;
               };
-              _proto2.addBlock = function addBlock(name, block) {
-                this.blocks[name] = this.blocks[name] || [];
-                this.blocks[name].push(block);
+              _proto2.addBlock = function addBlock(name2, block) {
+                this.blocks[name2] = this.blocks[name2] || [];
+                this.blocks[name2].push(block);
                 return this;
               };
-              _proto2.getBlock = function getBlock(name) {
-                if (!this.blocks[name]) {
-                  throw new Error('unknown block "' + name + '"');
+              _proto2.getBlock = function getBlock(name2) {
+                if (!this.blocks[name2]) {
+                  throw new Error('unknown block "' + name2 + '"');
                 }
-                return this.blocks[name][0];
+                return this.blocks[name2][0];
               };
-              _proto2.getSuper = function getSuper(env, name, block, frame, runtime, cb) {
-                var idx = lib.indexOf(this.blocks[name] || [], block);
-                var blk = this.blocks[name][idx + 1];
+              _proto2.getSuper = function getSuper(env, name2, block, frame, runtime, cb) {
+                var idx = lib.indexOf(this.blocks[name2] || [], block);
+                var blk = this.blocks[name2][idx + 1];
                 var context = this;
                 if (idx === -1 || !blk) {
-                  throw new Error('no super block available for "' + name + '"');
+                  throw new Error('no super block available for "' + name2 + '"');
                 }
                 blk(env, context, frame, runtime, cb);
               };
-              _proto2.addExport = function addExport(name) {
-                this.exported.push(name);
+              _proto2.addExport = function addExport(name2) {
+                this.exported.push(name2);
               };
               _proto2.getExported = function getExported() {
                 var _this5 = this;
                 var exported = {};
-                this.exported.forEach(function(name) {
-                  exported[name] = _this5.ctx[name];
+                this.exported.forEach(function(name2) {
+                  exported[name2] = _this5.ctx[name2];
                 });
                 return exported;
               };
@@ -2787,7 +2787,7 @@ var require_nunjucks = __commonJS({
                 }
                 return new lib.TemplateError(msg, lineno, colno);
               };
-              _proto.fail = function fail2(msg, lineno, colno) {
+              _proto.fail = function fail4(msg, lineno, colno) {
                 throw this.error(msg, lineno, colno);
               };
               _proto.skip = function skip(type) {
@@ -2816,9 +2816,9 @@ var require_nunjucks = __commonJS({
               _proto.skipSymbol = function skipSymbol(val) {
                 return this.skipValue(lexer.TOKEN_SYMBOL, val);
               };
-              _proto.advanceAfterBlockEnd = function advanceAfterBlockEnd(name) {
+              _proto.advanceAfterBlockEnd = function advanceAfterBlockEnd(name2) {
                 var tok;
-                if (!name) {
+                if (!name2) {
                   tok = this.peekToken();
                   if (!tok) {
                     this.fail("unexpected end of file");
@@ -2826,7 +2826,7 @@ var require_nunjucks = __commonJS({
                   if (tok.type !== lexer.TOKEN_SYMBOL) {
                     this.fail("advanceAfterBlockEnd: expected symbol token or explicit name to be passed");
                   }
-                  name = this.nextToken().value;
+                  name2 = this.nextToken().value;
                 }
                 tok = this.nextToken();
                 if (tok && tok.type === lexer.TOKEN_BLOCK_END) {
@@ -2834,7 +2834,7 @@ var require_nunjucks = __commonJS({
                     this.dropLeadingWhitespace = true;
                   }
                 } else {
-                  this.fail("expected block end in " + name + " statement");
+                  this.fail("expected block end in " + name2 + " statement");
                 }
                 return tok;
               };
@@ -2895,9 +2895,9 @@ var require_nunjucks = __commonJS({
                 if (!this.skipSymbol("macro")) {
                   this.fail("expected macro");
                 }
-                var name = this.parsePrimary(true);
+                var name2 = this.parsePrimary(true);
                 var args = this.parseSignature();
-                var node2 = new nodes.Macro(macroTok.lineno, macroTok.colno, name, args);
+                var node2 = new nodes.Macro(macroTok.lineno, macroTok.colno, name2, args);
                 this.advanceAfterBlockEnd(macroTok.value);
                 node2.body = this.parseUntilBlocks("endmacro");
                 this.advanceAfterBlockEnd();
@@ -2979,15 +2979,15 @@ var require_nunjucks = __commonJS({
                   if (names.children.length > 0 && !this.skip(lexer.TOKEN_COMMA)) {
                     this.fail("parseFrom: expected comma", fromTok.lineno, fromTok.colno);
                   }
-                  var name = this.parsePrimary();
-                  if (name.value.charAt(0) === "_") {
-                    this.fail("parseFrom: names starting with an underscore cannot be imported", name.lineno, name.colno);
+                  var name2 = this.parsePrimary();
+                  if (name2.value.charAt(0) === "_") {
+                    this.fail("parseFrom: names starting with an underscore cannot be imported", name2.lineno, name2.colno);
                   }
                   if (this.skipSymbol("as")) {
                     var alias = this.parsePrimary();
-                    names.addChild(new nodes.Pair(name.lineno, name.colno, name, alias));
+                    names.addChild(new nodes.Pair(name2.lineno, name2.colno, name2, alias));
                   } else {
-                    names.addChild(name);
+                    names.addChild(name2);
                   }
                   withContext = this.parseWithContext();
                 }
@@ -3468,11 +3468,11 @@ var require_nunjucks = __commonJS({
               };
               _proto.parseFilterName = function parseFilterName() {
                 var tok = this.expect(lexer.TOKEN_SYMBOL);
-                var name = tok.value;
+                var name2 = tok.value;
                 while (this.skipValue(lexer.TOKEN_OPERATOR, ".")) {
-                  name += "." + this.expect(lexer.TOKEN_SYMBOL).value;
+                  name2 += "." + this.expect(lexer.TOKEN_SYMBOL).value;
                 }
-                return new nodes.Symbol(tok.lineno, tok.colno, name);
+                return new nodes.Symbol(tok.lineno, tok.colno, name2);
               };
               _proto.parseFilterArgs = function parseFilterArgs(node2) {
                 if (this.peekToken().type === lexer.TOKEN_LEFT_PAREN) {
@@ -3483,8 +3483,8 @@ var require_nunjucks = __commonJS({
               };
               _proto.parseFilter = function parseFilter(node2) {
                 while (this.skip(lexer.TOKEN_PIPE)) {
-                  var name = this.parseFilterName();
-                  node2 = new nodes.Filter(name.lineno, name.colno, name, new nodes.NodeList(name.lineno, name.colno, [node2].concat(this.parseFilterArgs(node2))));
+                  var name2 = this.parseFilterName();
+                  node2 = new nodes.Filter(name2.lineno, name2.colno, name2, new nodes.NodeList(name2.lineno, name2.colno, [node2].concat(this.parseFilterArgs(node2))));
                 }
                 return node2;
               };
@@ -3493,13 +3493,13 @@ var require_nunjucks = __commonJS({
                 if (!this.skipSymbol("filter")) {
                   this.fail("parseFilterStatement: expected filter");
                 }
-                var name = this.parseFilterName();
-                var args = this.parseFilterArgs(name);
+                var name2 = this.parseFilterName();
+                var args = this.parseFilterArgs(name2);
                 this.advanceAfterBlockEnd(filterTok.value);
-                var body = new nodes.Capture(name.lineno, name.colno, this.parseUntilBlocks("endfilter"));
+                var body = new nodes.Capture(name2.lineno, name2.colno, this.parseUntilBlocks("endfilter"));
                 this.advanceAfterBlockEnd();
-                var node2 = new nodes.Filter(name.lineno, name.colno, name, new nodes.NodeList(name.lineno, name.colno, [body].concat(args)));
-                return new nodes.Output(name.lineno, name.colno, [node2]);
+                var node2 = new nodes.Filter(name2.lineno, name2.colno, name2, new nodes.NodeList(name2.lineno, name2.colno, [body].concat(args)));
+                return new nodes.Output(name2.lineno, name2.colno, [node2]);
               };
               _proto.parseAggregate = function parseAggregate() {
                 var tok = this.nextToken();
@@ -4088,11 +4088,11 @@ var require_nunjucks = __commonJS({
               _proto.resolve = function resolve(from, to) {
                 throw new Error("relative templates not support in the browser yet");
               };
-              _proto.getSource = function getSource(name, cb) {
+              _proto.getSource = function getSource(name2, cb) {
                 var _this2 = this;
                 var useCache = this.useCache;
                 var result;
-                this.fetch(this.baseURL + "/" + name, function(err, src) {
+                this.fetch(this.baseURL + "/" + name2, function(err, src) {
                   if (err) {
                     if (cb) {
                       cb(err.content);
@@ -4104,10 +4104,10 @@ var require_nunjucks = __commonJS({
                   } else {
                     result = {
                       src,
-                      path: name,
+                      path: name2,
                       noCache: !useCache
                     };
-                    _this2.emit("load", name, result);
+                    _this2.emit("load", name2, result);
                     if (cb) {
                       cb(null, result);
                     }
@@ -4210,11 +4210,11 @@ var require_nunjucks = __commonJS({
                 }
                 return new Template(src, env, path, eagerCompile);
               },
-              render: function render2(name, ctx, cb) {
+              render: function render2(name2, ctx, cb) {
                 if (!e) {
                   configure();
                 }
-                return e.render(name, ctx, cb);
+                return e.render(name2, ctx, cb);
               },
               renderString: function renderString(src, ctx, cb) {
                 if (!e) {
@@ -4758,10 +4758,10 @@ var require_nunjucks = __commonJS({
               }
               return ret;
             }
-            function once(emitter, name) {
+            function once(emitter, name2) {
               return new Promise(function(resolve, reject) {
                 function errorListener(err) {
-                  emitter.removeListener(name, resolver);
+                  emitter.removeListener(name2, resolver);
                   reject(err);
                 }
                 function resolver() {
@@ -4771,8 +4771,8 @@ var require_nunjucks = __commonJS({
                   resolve([].slice.call(arguments));
                 }
                 ;
-                eventTargetAgnosticAddListener(emitter, name, resolver, { once: true });
-                if (name !== "error") {
+                eventTargetAgnosticAddListener(emitter, name2, resolver, { once: true });
+                if (name2 !== "error") {
                   addErrorHandlerIfEventEmitter(emitter, errorListener, { once: true });
                 }
               });
@@ -4782,17 +4782,17 @@ var require_nunjucks = __commonJS({
                 eventTargetAgnosticAddListener(emitter, "error", handler, flags);
               }
             }
-            function eventTargetAgnosticAddListener(emitter, name, listener, flags) {
+            function eventTargetAgnosticAddListener(emitter, name2, listener, flags) {
               if (typeof emitter.on === "function") {
                 if (flags.once) {
-                  emitter.once(name, listener);
+                  emitter.once(name2, listener);
                 } else {
-                  emitter.on(name, listener);
+                  emitter.on(name2, listener);
                 }
               } else if (typeof emitter.addEventListener === "function") {
-                emitter.addEventListener(name, function wrapListener(arg) {
+                emitter.addEventListener(name2, function wrapListener(arg) {
                   if (flags.once) {
-                    emitter.removeEventListener(name, wrapListener);
+                    emitter.removeEventListener(name2, wrapListener);
                   }
                   listener(arg);
                 });
@@ -5473,14 +5473,14 @@ var require_nunjucks = __commonJS({
                 return _this;
               }
               var _proto = PrecompiledLoader2.prototype;
-              _proto.getSource = function getSource(name) {
-                if (this.precompiled[name]) {
+              _proto.getSource = function getSource(name2) {
+                if (this.precompiled[name2]) {
                   return {
                     src: {
                       type: "code",
-                      obj: this.precompiled[name]
+                      obj: this.precompiled[name2]
                     },
-                    path: name
+                    path: name2
                   };
                 }
                 return null;
@@ -5666,11 +5666,11 @@ var require_nunjucks = __commonJS({
           (function(module2, exports2, __webpack_require__) {
             var path = __webpack_require__(4);
             module2.exports = function express(env, app) {
-              function NunjucksView(name, opts) {
-                this.name = name;
-                this.path = name;
+              function NunjucksView(name2, opts) {
+                this.name = name2;
+                this.path = name2;
                 this.defaultEngine = opts.defaultEngine;
-                this.ext = path.extname(name);
+                this.ext = path.extname(name2);
                 if (!this.ext && !this.defaultEngine) {
                   throw new Error("No default engine was specified and no extension was provided.");
                 }
@@ -5744,9 +5744,9 @@ var require_nunjucks = __commonJS({
               } else if (pathStats.isDirectory()) {
                 addTemplates(input2);
                 for (var i = 0; i < templates.length; i++) {
-                  var name = templates[i].replace(path.join(input2, "/"), "");
+                  var name2 = templates[i].replace(path.join(input2, "/"), "");
                   try {
-                    precompiled.push(_precompile(fs.readFileSync(templates[i], "utf-8"), name, env));
+                    precompiled.push(_precompile(fs.readFileSync(templates[i], "utf-8"), name2, env));
                   } catch (e) {
                     if (opts.force) {
                       console.error(e);
@@ -5758,19 +5758,19 @@ var require_nunjucks = __commonJS({
               }
               return wrapper(precompiled, opts);
             }
-            function _precompile(str, name, env) {
+            function _precompile(str, name2, env) {
               env = env || new Environment([]);
               var asyncFilters = env.asyncFilters;
               var extensions = env.extensionsList;
               var template;
-              name = name.replace(/\\/g, "/");
+              name2 = name2.replace(/\\/g, "/");
               try {
-                template = compiler.compile(str, asyncFilters, extensions, name, env.opts);
+                template = compiler.compile(str, asyncFilters, extensions, name2, env.opts);
               } catch (err) {
-                throw _prettifyError(name, false, err);
+                throw _prettifyError(name2, false, err);
               }
               return {
-                name,
+                name: name2,
                 template
               };
             }
@@ -5787,11 +5787,11 @@ var require_nunjucks = __commonJS({
               var out = "";
               opts = opts || {};
               for (var i = 0; i < templates.length; i++) {
-                var name = JSON.stringify(templates[i].name);
+                var name2 = JSON.stringify(templates[i].name);
                 var template = templates[i].template;
-                out += "(function() {(window.nunjucksPrecompiled = window.nunjucksPrecompiled || {})[" + name + "] = (function() {\n" + template + "\n})();\n";
+                out += "(function() {(window.nunjucksPrecompiled = window.nunjucksPrecompiled || {})[" + name2 + "] = (function() {\n" + template + "\n})();\n";
                 if (opts.asFunction) {
-                  out += "return function(ctx, cb) { return nunjucks.render(" + name + ", ctx, cb); }\n";
+                  out += "return function(ctx, cb) { return nunjucks.render(" + name2 + ", ctx, cb); }\n";
                 }
                 out += "})();\n";
               }
@@ -6088,14 +6088,14 @@ var require_nunjucks = __commonJS({
 var import_nunjucks = __toESM(require_nunjucks(), 1);
 function templateRenderer(templates) {
   const loader = new (import_nunjucks.default.Loader.extend({
-    getSource(name) {
-      if (typeof name !== "string" || !Object.hasOwn(templates, name))
-        throw new Error(`Unknown packaged template: ${name}`);
-      if (/\[\[[A-Za-z_][A-Za-z0-9_]*\]\]/.test(templates[name]))
+    getSource(name2) {
+      if (typeof name2 !== "string" || !Object.hasOwn(templates, name2))
+        throw new Error(`Unknown packaged template: ${name2}`);
+      if (/\[\[[A-Za-z_][A-Za-z0-9_]*\]\]/.test(templates[name2]))
         throw new Error(
-          "Replace legacy [[name]] placeholders with {{ name }} in " + name
+          "Replace legacy [[name]] placeholders with {{ name }} in " + name2
         );
-      return { src: templates[name], path: name, noCache: false };
+      return { src: templates[name2], path: name2, noCache: false };
     }
   }))();
   const env = new import_nunjucks.default.Environment(loader, {
@@ -6104,16 +6104,16 @@ function templateRenderer(templates) {
     trimBlocks: true,
     lstripBlocks: true
   });
-  const identifier2 = (value) => {
+  const identifier4 = (value) => {
     if (typeof value !== "string" || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(value))
       throw new Error(`Invalid SQL identifier: ${value}`);
     return "`" + value + "`";
   };
-  env.addFilter("identifier", identifier2);
+  env.addFilter("identifier", identifier4);
   env.addFilter("relation", (value) => {
     if (typeof value !== "string")
       throw new Error("relation requires a dotted name");
-    return value.split(".").map(identifier2).join(".");
+    return value.split(".").map(identifier4).join(".");
   });
   env.addFilter("sql_string", (value) => {
     if (typeof value !== "string")
@@ -6131,7 +6131,104 @@ function templateRenderer(templates) {
     );
   });
   delete env.filters.random;
-  return (name, values = {}) => env.render(name, JSON.parse(JSON.stringify(values)));
+  return (name2, values = {}) => env.render(name2, JSON.parse(JSON.stringify(values)));
+}
+
+// src/query-ingestion.mjs
+var fail = (message) => {
+  throw new Error(message);
+};
+var identifier = (v) => typeof v === "string" && /^[A-Za-z_][A-Za-z0-9_]*$/.test(v);
+var name = (v) => typeof v === "string" && v.length > 0 && v.length <= 255 && !/[\n\r`]/.test(v);
+var queryStandard = "query-ingestion@v1";
+var histories = ["SCD_TYPE_1", "SCD_TYPE_2", "APPEND_ONLY"];
+function expandQueryIngestion(flow, providerSource, columnsByTable) {
+  const config2 = flow.ingestion ?? {};
+  for (const key of Object.keys(config2))
+    ["standard", "pipeline", "target", "history"].includes(key) || fail(`Unsupported query ingestion setting ${key}`);
+  typeof config2.pipeline === "string" && /^[A-Za-z0-9_-]+$/.test(config2.pipeline) || fail("A logical pipeline alias is required");
+  config2.target && Object.keys(config2.target).every((k) => k === "schema") && identifier(config2.target.schema) || fail("Query ingestion target needs only a destination schema");
+  const history = config2.history ?? "SCD_TYPE_1";
+  histories.includes(history) || fail(`history must be one of ${histories.join(", ")}`);
+  Object.keys(flow.defaults?.with ?? {}).length && fail("Ingestion standards own their processing");
+  const steps = Object.entries(flow.tables ?? {}).map(([table, value]) => {
+    const columns = columnsByTable[table] ?? [];
+    const options = value.ingestion ?? {};
+    for (const key of Object.keys(options))
+      key === "cursor" || fail(`${table}: query ingestion tables accept ingestion.cursor only`);
+    Object.keys(value.steps ?? {}).length && fail(`${table}: use table.ingestion settings, not step overrides`);
+    const cursor = options.cursor;
+    cursor === void 0 || columns.some((c) => c.name === cursor) || fail(`${table}: unknown cursor column ${cursor}`);
+    const keys = columns.filter((c) => c.key).map((c) => c.name);
+    history === "APPEND_ONLY" || keys.length || fail(`${table}: ${history} needs primary keys in the contract`);
+    return {
+      id: `ingest_${table}`,
+      uses: "lakeflow-ingest@v1",
+      select: [table],
+      with: {
+        standard: queryStandard,
+        pipeline: config2.pipeline,
+        target: config2.target,
+        history,
+        keys,
+        ...cursor ? { cursor } : {}
+      }
+    };
+  });
+  return {
+    steps,
+    recovery: {
+      standard: queryStandard,
+      provider: providerSource,
+      capture: "query",
+      replaySource: "source-database",
+      retention: "source-owned",
+      actualCompleteness: "unverified",
+      detail: "Lakeflow Connect keeps the cursor high-water mark; rows with a NULL cursor are not ingested, and without a cursor every run is a full load.",
+      assumptions: [
+        "The cursor column increases monotonically and is never set back.",
+        "Serverless compute can reach the source database through the Unity Catalog connection."
+      ]
+    }
+  };
+}
+function validateQueryNode(n) {
+  const s = n.source ?? {};
+  for (const key of Object.keys(s))
+    ["kind", "connection", "database", "schema", "table"].includes(key) || fail(`Unsupported query source setting ${key}`);
+  s.kind === "uc-connection" && name(s.connection) && name(s.database) && name(s.schema) && name(s.table) || fail(
+    "Query ingestion needs a Unity Catalog connection and source database, schema and table"
+  );
+}
+function queryObject(t, catalog) {
+  return {
+    connection: t.connection,
+    object: {
+      table: {
+        source_catalog: t.database,
+        source_schema: t.schema,
+        source_table: t.table,
+        destination_catalog: catalog,
+        destination_schema: t.destinationSchema,
+        destination_table: t.destinationTable,
+        table_configuration: {
+          scd_type: t.history,
+          ...t.keys.length ? { primary_keys: t.keys } : {},
+          ...t.cursor ? { query_based_connector_config: { cursor_columns: [t.cursor] } } : {}
+        }
+      }
+    }
+  };
+}
+function ingestionDefinition(objects) {
+  const connections = new Set(objects.map((o) => o.connection));
+  connections.size === 1 || fail(
+    "One managed ingestion pipeline reads through one Unity Catalog connection"
+  );
+  return {
+    connection_name: [...connections][0],
+    objects: objects.map((o) => o.object)
+  };
 }
 
 // src/resources.mjs
@@ -6209,6 +6306,10 @@ function renderResources(plan, pipelines, put) {
   const logs = /* @__PURE__ */ new Set();
   const existingIds = /* @__PURE__ */ new Set();
   for (const [alias, group] of pipelines) {
+    check(
+      !group.managed?.length || !group.sources.length,
+      `${alias}: a pipeline cannot mix managed ingestion with file or transformation sources`
+    );
     const config2 = settings.pipelines?.[alias] ?? { ownership: "managed" };
     const external = config2.ownership === "external";
     const adopted = config2.ownership === "adopt";
@@ -6257,21 +6358,21 @@ function renderResources(plan, pipelines, put) {
       );
     }
     if (config2.eventLog) {
-      const name = [
+      const name2 = [
         config2.eventLog.catalog,
         config2.eventLog.schema,
         config2.eventLog.name
       ].join(".");
-      check(!logs.has(name), "Each pipeline needs a distinct event-log table");
+      check(!logs.has(name2), "Each pipeline needs a distinct event-log table");
       check(
         !plan.nodes.some(
-          (n) => n.with.targetTable === name || [binding.catalog, n.with.schema, n.with.table].join(".") === name || [binding.catalog, n.with.target?.historySchema, n.with.table].join(
+          (n) => n.with.targetTable === name2 || [binding.catalog, n.with.schema, n.with.table].join(".") === name2 || [binding.catalog, n.with.target?.historySchema, n.with.table].join(
             "."
-          ) === name
+          ) === name2
         ),
         "Event-log target collides with a data target"
       );
-      logs.add(name);
+      logs.add(name2);
     }
     const key = resource(alias);
     ids.set(alias, "${resources.pipelines." + key + ".id}");
@@ -6287,14 +6388,16 @@ function renderResources(plan, pipelines, put) {
             catalog: binding.catalog,
             schema,
             serverless: true,
-            channel: "CURRENT",
+            channel: group.channel ?? "CURRENT",
             continuous: false,
             development: settings.mode === "development",
-            libraries: group.sources.map((path) => ({
-              [path.endsWith(".ipynb") ? "notebook" : "file"]: {
-                path: "../" + path
-              }
-            })),
+            ...group.managed?.length ? { ingestion_definition: ingestionDefinition(group.managed) } : {
+              libraries: group.sources.map((path) => ({
+                [path.endsWith(".ipynb") ? "notebook" : "file"]: {
+                  path: "../" + path
+                }
+              }))
+            },
             ...config2.runAs ? { run_as: config2.runAs } : {},
             ...config2.permissions ? { permissions: config2.permissions } : {},
             ...config2.notifications ? { notifications: config2.notifications } : {},
@@ -6319,9 +6422,9 @@ function renderResources(plan, pipelines, put) {
       }
     ];
     for (const n of freshness) {
-      const name = [binding.catalog, n.with.schema, n.with.table].map((v) => "`" + v + "`").join(".");
+      const name2 = [binding.catalog, n.with.schema, n.with.table].map((v) => "`" + v + "`").join(".");
       const seconds = Math.ceil(n.with.freshness.maximumAgeHours * 3600);
-      const query = `SELECT MAX(\`${n.with.freshness.column}\`) >= current_timestamp() - INTERVAL ${seconds} SECONDS AS fresh FROM ${name}`;
+      const query = `SELECT MAX(\`${n.with.freshness.column}\`) >= current_timestamp() - INTERVAL ${seconds} SECONDS AS fresh FROM ${name2}`;
       cells.push({
         cell_type: "code",
         metadata: {},
@@ -6330,7 +6433,7 @@ function renderResources(plan, pipelines, put) {
         source: [
           `# ${n.flow}.${n.table}: latest business timestamp must be within ${seconds} seconds.
 if spark.sql(${JSON.stringify(query)}).first()["fresh"] is not True:
-    raise ValueError(${JSON.stringify("Stale or empty dataset: " + name)})
+    raise ValueError(${JSON.stringify("Stale or empty dataset: " + name2)})
 `
         ]
       });
@@ -6520,7 +6623,91 @@ Offline schema, syntax and synthetic tests do not establish any of those native 
   return ownership.join("\n");
 }
 
+// src/sharepoint-ingestion.mjs
+var fail2 = (message) => {
+  throw new Error(message);
+};
+var identifier2 = (v) => typeof v === "string" && /^[A-Za-z_][A-Za-z0-9_]*$/.test(v);
+var sharePointStandard = "sharepoint-ingestion@v1";
+var formats = ["csv", "json", "excel", "parquet", "xml", "avro", "text"];
+function expandSharePointIngestion(flow, providerSource) {
+  const config2 = flow.ingestion ?? {};
+  for (const key of Object.keys(config2))
+    ["standard", "pipeline", "target"].includes(key) || fail2(`Unsupported SharePoint ingestion setting ${key}`);
+  typeof config2.pipeline === "string" && /^[A-Za-z0-9_-]+$/.test(config2.pipeline) || fail2("A logical pipeline alias is required");
+  config2.target && Object.keys(config2.target).every((k) => k === "schema") && identifier2(config2.target.schema) || fail2("SharePoint ingestion target needs only a destination schema");
+  Object.keys(flow.defaults?.with ?? {}).length && fail2("Ingestion standards own their processing");
+  const steps = Object.entries(flow.tables ?? {}).map(([table, value]) => {
+    value.ingestion === void 0 && !Object.keys(value.steps ?? {}).length || fail2(`${table}: SharePoint ingestion has no table settings`);
+    return {
+      id: `ingest_${table}`,
+      uses: "lakeflow-ingest@v1",
+      select: [table],
+      with: {
+        standard: sharePointStandard,
+        pipeline: config2.pipeline,
+        target: config2.target,
+        keys: []
+      }
+    };
+  });
+  return {
+    steps,
+    recovery: {
+      standard: sharePointStandard,
+      provider: providerSource,
+      capture: "managed-incremental",
+      replaySource: "source-site",
+      retention: "source-owned",
+      actualCompleteness: "unverified",
+      detail: "Lakeflow Connect tracks which files it has read; history tracking (SCD type 2) is not supported by this connector.",
+      assumptions: [
+        "The Unity Catalog connection has read access to the site through OAuth."
+      ]
+    }
+  };
+}
+function validateSharePointNode(n) {
+  const s = n.source ?? {};
+  for (const key of Object.keys(s))
+    ["kind", "connection", "site", "path", "entity", "format"].includes(key) || fail2(`Unsupported SharePoint source setting ${key}`);
+  s.kind === "sharepoint" && typeof s.connection === "string" && s.connection.length > 0 || fail2("SharePoint ingestion needs a Unity Catalog connection");
+  typeof s.site === "string" && /^https:\/\/[^\s/]+\/sites\/[^\s]+[^/]$/.test(s.site) || fail2("site must be an https SharePoint site URL without a trailing slash");
+  typeof s.path === "string" && s.path.length > 0 && !s.path.startsWith("/") && !s.path.split("/").some((part) => part === ".." || part === "") || fail2("path must be a relative folder or Lists/<name> inside the site");
+  ["file", "list"].includes(s.entity ?? "file") || fail2("entity must be file or list");
+  (s.entity ?? "file") === "list" ? s.format === void 0 || fail2("format applies to files only") : formats.includes(s.format) || fail2(`format must be one of ${formats.join(", ")}`);
+}
+var encodePath = (path) => path.split("/").map((segment) => encodeURIComponent(decodeURIComponent(segment))).join("/");
+var hint = (c) => "`" + c.name + "` " + c.type;
+function sharePointObject(s, columns, destination) {
+  const list = (s.entity ?? "file") === "list";
+  return {
+    connection: s.connection,
+    object: {
+      table: {
+        destination_catalog: destination.catalog,
+        destination_schema: destination.schema,
+        destination_table: destination.table,
+        connector_options: {
+          sharepoint_options: {
+            entity_type: list ? "LIST" : "FILE",
+            url: `${s.site}/${encodePath(s.path)}`,
+            ...list ? {} : {
+              file_ingestion_options: {
+                format: s.format.toUpperCase(),
+                schema_evolution_mode: "NONE",
+                schema_hints: columns.map(hint).join(", ")
+              }
+            }
+          }
+        }
+      }
+    }
+  };
+}
+
 // src/render.mjs
+var managedStandards = [queryStandard, sharePointStandard];
 var check2 = (ok, message) => {
   if (!ok) throw new Error(message);
 };
@@ -6610,11 +6797,18 @@ function validateIngestionPlan(plan) {
       "Generated pipeline definition names collide; rename the flow/table"
     );
     internalNames.add(internal);
-    const name = target(plan, n);
-    relation(name);
-    check2(!outputs.has(name), `Duplicate dataset target ${name}`);
-    outputs.add(name);
-    if (kind(n) === "lakeflow-ingest") {
+    const name2 = target(plan, n);
+    relation(name2);
+    check2(!outputs.has(name2), `Duplicate dataset target ${name2}`);
+    outputs.add(name2);
+    if (kind(n) === "lakeflow-ingest" && managedStandards.includes(n.with.standard)) {
+      check2(
+        plan.flows.find((f) => f.id === n.flow)?.ingestion,
+        "Use flow.ingestion to select lakeflow-ingest"
+      );
+      if (n.with.standard === queryStandard) validateQueryNode(n);
+      else validateSharePointNode(n);
+    } else if (kind(n) === "lakeflow-ingest") {
       check2(
         plan.flows.find((f) => f.id === n.flow)?.ingestion,
         "Use flow.ingestion to select lakeflow-ingest"
@@ -6625,8 +6819,8 @@ function validateIngestionPlan(plan) {
         "Databricks ingestion standards consume files in existing ADLS or Volumes; database extraction belongs upstream"
       );
       check2(
-        typeof s.path === "string" && /^(abfss:\/\/|\/Volumes\/).+[^/]$/.test(s.path),
-        "source.path must be a cloud or Volume directory without a trailing slash"
+        typeof s.path === "string" && /^(abfss:\/\/|s3:\/\/|gs:\/\/|\/Volumes\/).+[^/]$/.test(s.path),
+        "source.path must be an ADLS, S3, GCS or Volume directory without a trailing slash"
       );
       check2(
         ["json", "parquet"].includes(s.format),
@@ -6738,6 +6932,29 @@ function renderIngestion(plan) {
       group.sources.push(stem + ".sql");
       continue;
     }
+    if (managedStandards.includes(n.with.standard)) {
+      const destination = {
+        catalog: plan.bindings[n.binding].catalog,
+        schema: n.with.schema ?? n.with.target.schema,
+        table: n.with.table
+      };
+      group.managed = [
+        ...group.managed ?? [],
+        n.with.standard === queryStandard ? queryObject(
+          {
+            ...n.source,
+            history: n.with.history,
+            keys: n.with.keys,
+            cursor: n.with.cursor,
+            destinationSchema: destination.schema,
+            destinationTable: destination.table
+          },
+          destination.catalog
+        ) : sharePointObject(n.source, n.columns, destination)
+      ];
+      if (n.with.standard === sharePointStandard) group.channel = "PREVIEW";
+      continue;
+    }
     const w = n.with, s = n.source;
     const templates = Object.fromEntries(
       n.implementation.templates.map((t) => [t.output, t.content])
@@ -6761,14 +6978,14 @@ function renderIngestion(plan) {
         message: py(`Required column check failed: ${column}`)
       };
     });
-    for (const [name, expression] of Object.entries(w.expectations ?? {})) {
-      ident(name);
+    for (const [name2, expression] of Object.entries(w.expectations ?? {})) {
+      ident(name2);
       check2(
         !/[;]|--|\/\*/.test(expression),
         "Expectations must be a single SQL predicate, without comments or statements"
       );
       rules.push({
-        name: "business_" + name,
+        name: "business_" + name2,
         expression,
         python: py(expression)
       });
@@ -7971,12 +8188,12 @@ function merge(a, b) {
   });
   return clone(a, def);
 }
-function partial(Class2, schema, mask, name = "partial") {
+function partial(Class2, schema, mask, name2 = "partial") {
   const currDef = schema._zod.def;
   const checks = currDef.checks;
   const hasChecks = checks && checks.length > 0;
   if (hasChecks) {
-    throw new Error(`.${name}() cannot be used on object schemas containing refinements`);
+    throw new Error(`.${name2}() cannot be used on object schemas containing refinements`);
   }
   const def = mergeDefs(schema._zod.def, {
     get shape() {
@@ -8330,7 +8547,7 @@ function newError(Definition) {
   return new Definition();
 }
 // @__NO_SIDE_EFFECTS__
-function $constructor(name, initializer3, proto, params) {
+function $constructor(name2, initializer3, proto, params) {
   const zodProto = {};
   function Internals(def) {
     this.def = def;
@@ -8349,10 +8566,10 @@ function $constructor(name, initializer3, proto, params) {
         _zodDesc.value = void 0;
       }
     }
-    if (inst._zod.traits.has(name)) {
+    if (inst._zod.traits.has(name2)) {
       return;
     }
-    inst._zod.traits.add(name);
+    inst._zod.traits.add(name2);
     initializer3(inst, def);
     if (initialized) {
       const own2 = Object.getPrototypeOf(inst);
@@ -8378,7 +8595,7 @@ function $constructor(name, initializer3, proto, params) {
   const Parent = params?.Parent ?? Object;
   class Definition extends Parent {
   }
-  Object.defineProperty(Definition, "name", { value: name });
+  Object.defineProperty(Definition, "name", { value: name2 });
   function _(def) {
     const inst = params?.Parent ? newError(Definition) : this;
     init(inst, def);
@@ -8399,10 +8616,10 @@ function $constructor(name, initializer3, proto, params) {
     value: (inst) => {
       if (params?.Parent && inst instanceof params.Parent)
         return true;
-      return inst?._zod?.traits?.has(name);
+      return inst?._zod?.traits?.has(name2);
     }
   });
-  Object.defineProperty(_, "name", { value: name });
+  Object.defineProperty(_, "name", { value: name2 });
   return _;
 }
 var $brand = /* @__PURE__ */ Symbol("zod_brand");
@@ -8412,8 +8629,8 @@ var $ZodAsyncError = class extends Error {
   }
 };
 var $ZodEncodeError = class extends Error {
-  constructor(name) {
-    super(`Encountered unidirectional transform during encode: ${name}`);
+  constructor(name2) {
+    super(`Encountered unidirectional transform during encode: ${name2}`);
     this.name = "ZodEncodeError";
   }
 };
@@ -19523,13 +19740,13 @@ ${code}
   return fn;
 }
 function addConstant(ctx, value) {
-  for (const [name2, v] of ctx.constants) {
+  for (const [name3, v] of ctx.constants) {
     if (v === value)
-      return name2;
+      return name3;
   }
-  const name = `c${ctx.constantCounter++}`;
-  ctx.constants.set(name, value);
-  return name;
+  const name2 = `c${ctx.constantCounter++}`;
+  ctx.constants.set(name2, value);
+  return name2;
 }
 function newVar(ctx) {
   return `v${ctx.varCounter++}`;
@@ -25794,21 +26011,21 @@ var OPERATORS = [
   "mustNotBeBetween"
 ];
 var ROW_LEVEL = /* @__PURE__ */ new Set(["nullValues", "missingValues", "invalidValues"]);
-var fail = (message) => {
+var fail3 = (message) => {
   throw new Error(message);
 };
 function sqlShape(id2, text, kind2) {
   const stripped = String(text).replace(/'(?:[^'\\]|\\.|'')*'/g, "''").replace(/`[^`]*`/g, "``").replace(/"[^"]*"/g, '""');
   if (/--|\/\*|;/.test(stripped))
-    fail(`${id2}: ${kind2} must be one statement without comments or semicolons`);
+    fail3(`${id2}: ${kind2} must be one statement without comments or semicolons`);
   if (/\b(INSERT|UPDATE|DELETE|MERGE|DROP|CREATE|ALTER|TRUNCATE|GRANT|REVOKE|EXEC|EXECUTE|CALL|USE|SET|OPTIMIZE|VACUUM|COPY|REFRESH|CACHE|UNCACHE|INTO|RESTORE|MSCK|LOAD)\b/i.test(
     stripped
   ))
-    fail(`${id2}: ${kind2} must only read data`);
+    fail3(`${id2}: ${kind2} must only read data`);
   if (kind2 === "query" && !/^\s*(SELECT|WITH)\b/i.test(stripped))
-    fail(`${id2}: a sql rule query must start with SELECT or WITH`);
+    fail3(`${id2}: a sql rule query must start with SELECT or WITH`);
   if (kind2 === "predicate" && /\bSELECT\b/i.test(stripped))
-    fail(`${id2}: a databricks rule is a row predicate without subqueries`);
+    fail3(`${id2}: a databricks rule is a row predicate without subqueries`);
   return text;
 }
 function parse3(rule, table, column) {
@@ -25819,7 +26036,7 @@ function parse3(rule, table, column) {
   if (type === "sql" || type === "custom") {
     const present2 = OPERATORS.filter((o) => rule[o] !== void 0);
     if (type === "sql" && present2.length !== 1)
-      fail(`${where}: a sql rule needs exactly one comparison`);
+      fail3(`${where}: a sql rule needs exactly one comparison`);
     return {
       id: String(rule.id ?? `${where}.${type === "sql" ? "sql" : rule.engine}`),
       table,
@@ -25838,10 +26055,10 @@ function parse3(rule, table, column) {
   }
   if (type !== "library") return void 0;
   if (!METRICS.includes(rule.metric))
-    fail(`${where}: unsupported library metric ${rule.metric}`);
+    fail3(`${where}: unsupported library metric ${rule.metric}`);
   const present = OPERATORS.filter((o) => rule[o] !== void 0);
   if (present.length !== 1)
-    fail(`${where}: a library rule needs exactly one comparison`);
+    fail3(`${where}: a library rule needs exactly one comparison`);
   return {
     id: String(rule.id ?? `${where}.${rule.metric}`),
     table,
@@ -25918,18 +26135,18 @@ function predicate(rule, column) {
     return valid.length ? `${c} IS NULL OR ${c} IN (${valid.join(", ")})` : `${c} IS NULL`;
   }
   if (typeof rule.arguments.pattern !== "string")
-    fail(
+    fail3(
       `${rule.id}: invalidValues needs arguments.validValues or arguments.pattern`
     );
   const pattern = `^(?:${rule.arguments.pattern})$`;
   return `${c} IS NULL OR CAST(${c} AS STRING) RLIKE '${pattern.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
 }
 var constraint = (id2, used) => {
-  let name = "q_" + id2.replace(/[^A-Za-z0-9_]/g, "_");
-  for (let i = 2; used.has(name); i++)
-    name = `q_${id2.replace(/[^A-Za-z0-9_]/g, "_")}_${i}`;
-  used.add(name);
-  return name;
+  let name2 = "q_" + id2.replace(/[^A-Za-z0-9_]/g, "_");
+  for (let i = 2; used.has(name2); i++)
+    name2 = `q_${id2.replace(/[^A-Za-z0-9_]/g, "_")}_${i}`;
+  used.add(name2);
+  return name2;
 };
 function qualityChecks(contract, columns, standard) {
   const object2 = contract.schema?.[0] ?? {};
@@ -25937,7 +26154,7 @@ function qualityChecks(contract, columns, standard) {
     (object2.properties ?? []).map((p) => [p.name, p.physicalName ?? p.name])
   );
   const byName = new Map(columns.map((c) => [c.name, c]));
-  const column = (rule, name) => byName.get(physical.get(name) ?? name) ?? fail(`${rule.id}: unknown contract column ${name}`);
+  const column = (rule, name2) => byName.get(physical.get(name2) ?? name2) ?? fail3(`${rule.id}: unknown contract column ${name2}`);
   const snapshot = standard === "snapshot-with-history@v1";
   const used = /* @__PURE__ */ new Set();
   const checks = [];
@@ -25946,7 +26163,7 @@ function qualityChecks(contract, columns, standard) {
     if (rule.metric === "custom") {
       if (rule.engine !== "databricks") continue;
       if (typeof rule.implementation !== "string")
-        fail(
+        fail3(
           `${rule.id}: a databricks rule implementation is a SQL predicate string`
         );
       checks.push({
@@ -25983,11 +26200,11 @@ function qualityChecks(contract, columns, standard) {
     if (!snapshot) {
       if (!ROW_LEVEL.has(rule.metric)) continue;
       if (!rule.column)
-        fail(
+        fail3(
           `${rule.id}: ${rule.metric} needs a column on streaming standards`
         );
       if (!zero)
-        fail(
+        fail3(
           `${rule.id}: streaming Lakeflow expectations check each row; use mustBe: 0 or a complete-snapshot standard`
         );
     }
@@ -25996,9 +26213,9 @@ function qualityChecks(contract, columns, standard) {
       (p) => column(rule, p).name
     );
     if (rule.metric === "duplicateValues" && !target2 && !properties.length)
-      fail(`${rule.id}: table duplicateValues needs arguments.properties`);
+      fail3(`${rule.id}: table duplicateValues needs arguments.properties`);
     if (ROW_LEVEL.has(rule.metric) && !target2)
-      fail(`${rule.id}: ${rule.metric} needs a column`);
+      fail3(`${rule.id}: ${rule.metric} needs a column`);
     checks.push({
       id: rule.id,
       name: constraint(rule.id, used),
@@ -26019,15 +26236,15 @@ function qualityChecks(contract, columns, standard) {
 var check4 = (ok, _code, message) => {
   if (!ok) throw new Error(message);
 };
-var identifier = external_exports.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/);
+var identifier3 = external_exports.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/);
 var tableIngestionSchema = external_exports.object({
-  freshness: external_exports.object({ column: identifier, maximumAgeHours: external_exports.number().positive() }).strict().optional(),
+  freshness: external_exports.object({ column: identifier3, maximumAgeHours: external_exports.number().positive() }).strict().optional(),
   snapshotPolicy: snapshotPolicySchema.optional(),
-  expectations: external_exports.record(identifier, external_exports.string().min(1)).optional(),
-  keys: external_exports.array(identifier).min(1).optional(),
-  sequenceBy: external_exports.array(identifier).min(1).max(1).optional(),
-  operationColumn: identifier.optional(),
-  trackedColumns: external_exports.array(identifier).min(1).optional()
+  expectations: external_exports.record(identifier3, external_exports.string().min(1)).optional(),
+  keys: external_exports.array(identifier3).min(1).optional(),
+  sequenceBy: external_exports.array(identifier3).min(1).max(1).optional(),
+  operationColumn: identifier3.optional(),
+  trackedColumns: external_exports.array(identifier3).min(1).optional()
 }).strict().optional();
 var ingestionSchema = external_exports.object({
   standard: external_exports.enum([
@@ -26037,7 +26254,7 @@ var ingestionSchema = external_exports.object({
   ]),
   snapshotPolicy: snapshotPolicySchema.optional(),
   pipeline: external_exports.string().regex(/^[A-Za-z0-9_-]+$/),
-  target: external_exports.object({ schema: identifier, historySchema: identifier.optional() }).strict(),
+  target: external_exports.object({ schema: identifier3, historySchema: identifier3.optional() }).strict(),
   source: external_exports.object({
     delivery: external_exports.enum([
       "complete-snapshot",
@@ -26118,16 +26335,16 @@ function expandIngestion(flow, providerSource, columnsByTable) {
       "INGESTION",
       `${table}: declare keys in table.ingestion.keys or the contract`
     );
-    for (const name of [
+    for (const name2 of [
       ...keys,
       ...options?.sequenceBy ?? [],
       ...options?.trackedColumns ?? [],
       ...options?.operationColumn ? [options.operationColumn] : []
     ])
       check4(
-        columns.some((c) => c.name === name),
+        columns.some((c) => c.name === name2),
         "INGESTION",
-        `${table}: unknown contract column ${name}`
+        `${table}: unknown contract column ${name2}`
       );
     check4(
       !columns.some(
@@ -26372,12 +26589,12 @@ function validatePublication(plan) {
       ),
       "Publication cannot satisfy same-run inputs"
     );
-    const name = `${plan.project}_${n.flow}_${n.table}`;
+    const name2 = `${plan.project}_${n.flow}_${n.table}`;
     check5(
-      /^[A-Za-z_][A-Za-z0-9_-]{0,100}$/.test(name) && !names.has(name),
+      /^[A-Za-z_][A-Za-z0-9_-]{0,100}$/.test(name2) && !names.has(name2),
       "Invalid publication resource name"
     );
-    names.add(name);
+    names.add(name2);
     source(n);
     const w = n.with;
     strict(
@@ -26435,7 +26652,7 @@ function renderPublication(plan) {
   const deployment = plan.nodes[0].runtime.options.publication;
   const assets = {}, jobs = {};
   for (const n of plan.nodes) {
-    const name = `${plan.project}_${n.flow}_${n.table}`, s = source(n), dataset = n.with.dataset ?? `${plan.project}.${n.flow}.${n.table}`;
+    const name2 = `${plan.project}_${n.flow}_${n.table}`, s = source(n), dataset = n.with.dataset ?? `${plan.project}.${n.flow}.${n.table}`;
     const config2 = {
       sourceRoot: n.source.path,
       dataset,
@@ -26497,7 +26714,7 @@ finally:
     credential.close()
 dbutils.notebook.exit(json.dumps(outcome))
 `;
-    assets[`notebooks/${name}.py`] = { format: "text", value: code };
+    assets[`notebooks/${name2}.py`] = { format: "text", value: code };
     const parameters = [
       "deliveryId",
       "version",
@@ -26513,21 +26730,21 @@ dbutils.notebook.exit(json.dumps(outcome))
       protocol: "ingestron.snapshot-publication/v1",
       contractShape: JSON.stringify(n.columns)
     };
-    jobs[name] = {
-      name,
+    jobs[name2] = {
+      name: name2,
       run_as: { service_principal_name: deployment.runAsServicePrincipal },
       permissions: deployment.permissions,
       max_concurrent_runs: 1,
-      parameters: parameters.map((name2) => ({
-        name: name2,
-        default: name2 === "initialiseIndex" ? "false" : ""
+      parameters: parameters.map((name3) => ({
+        name: name3,
+        default: name3 === "initialiseIndex" ? "false" : ""
       })),
       tasks: [
         {
           task_key: "publish",
           existing_cluster_id: deployment.existingClusterId,
           notebook_task: {
-            notebook_path: `../notebooks/${name}.py`,
+            notebook_path: `../notebooks/${name2}.py`,
             base_parameters: {
               ...identity,
               ...Object.fromEntries(
@@ -26542,7 +26759,7 @@ dbutils.notebook.exit(json.dumps(outcome))
         }
       ]
     };
-    assets[`handover/${name}.json`] = {
+    assets[`handover/${name2}.json`] = {
       format: "json",
       value: {
         apiVersion: "ingestron.snapshot-publication/v1",
@@ -26550,7 +26767,7 @@ dbutils.notebook.exit(json.dumps(outcome))
         contractVersion: n.with.contractVersion,
         sourceRoot: n.source.path,
         deliveryIndex: n.source.path + "/_ingestron/deliveries.json",
-        notebookSource: `notebooks/${name}.py`,
+        notebookSource: `notebooks/${name2}.py`,
         parameters,
         libraries: publicationLibraries,
         sourceVersionPolicy: "contiguous-from-one",
@@ -26611,7 +26828,16 @@ function render(plan) {
   return publication(plan) ? renderPublication(plan) : renderIngestion(plan);
 }
 function expand(request) {
-  const expanded = request.flow.ingestion?.standard === "snapshot-publication@v1" ? expandPublication(request) : expandIngestion(request.flow, request.providerSource, request.columns);
+  const standard = request.flow.ingestion?.standard;
+  const expanded = standard === "snapshot-publication@v1" ? expandPublication(request) : standard === sharePointStandard ? expandSharePointIngestion(request.flow, request.providerSource) : standard === queryStandard ? expandQueryIngestion(
+    request.flow,
+    request.providerSource,
+    request.columns
+  ) : expandIngestion(
+    request.flow,
+    request.providerSource,
+    request.columns
+  );
   expanded.steps = expanded.steps.map((step) => ({
     ...step,
     uses: step.select?.some(
