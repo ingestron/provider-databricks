@@ -1,10 +1,10 @@
 [
   {
     "file": "databricks-bundle.json",
-    "source": "https://api.github.com/repos/databricks/cli/git/blobs/6383b5ac2c5698aee9c07e3bad505e404899f12f",
-    "blob": "6383b5ac2c5698aee9c07e3bad505e404899f12f",
-    "sha256": "397fdb018fa5e01a9dd1b3a675b84eef11ebaa2285bf8c4c671109080f70b7b3",
-    "accessed": "2026-09-06"
+    "source": "https://api.github.com/repos/databricks/cli/git/blobs/79b576dc88a996f781d65e64b113d31c69dc92fe",
+    "blob": "79b576dc88a996f781d65e64b113d31c69dc92fe",
+    "sha256": "0f7bd8719ab5755bb3a9000f4bc30f75d95049dfc417d1bf0c5ba845f53e77c6",
+    "accessed": "2026-09-30"
   },
   {
     "file": "DATABRICKS-LICENSE",
