@@ -77,8 +77,8 @@ export function renderResources(plan, pipelines, put) {
   const existingIds = new Set();
   for (const [alias, group] of pipelines) {
     check(
-      !group.query?.length || !group.sources.length,
-      `${alias}: a pipeline cannot mix query ingestion with file or transformation sources`,
+      !group.managed?.length || !group.sources.length,
+      `${alias}: a pipeline cannot mix managed ingestion with file or transformation sources`,
     );
     const config = settings.pipelines?.[alias] ?? { ownership: "managed" };
     const external = config.ownership === "external";
@@ -166,16 +166,11 @@ export function renderResources(plan, pipelines, put) {
             catalog: binding.catalog,
             schema,
             serverless: true,
-            channel: "CURRENT",
+            channel: group.channel ?? "CURRENT",
             continuous: false,
             development: settings.mode === "development",
-            ...(group.query?.length
-              ? {
-                  ingestion_definition: ingestionDefinition(
-                    group.query,
-                    binding.catalog,
-                  ),
-                }
+            ...(group.managed?.length
+              ? { ingestion_definition: ingestionDefinition(group.managed) }
               : {
                   libraries: group.sources.map((path) => ({
                     [path.endsWith(".ipynb") ? "notebook" : "file"]: {

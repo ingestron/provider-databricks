@@ -101,16 +101,11 @@ export function validateQueryNode(n) {
     );
 }
 
-/** The ingestion_definition object for one pipeline's query tables. */
-export function ingestionDefinition(tables, catalog) {
-  const connections = new Set(tables.map((t) => t.connection));
-  connections.size === 1 ||
-    fail(
-      "One query ingestion pipeline reads through one Unity Catalog connection",
-    );
+/** The Lakeflow Connect object for one query table. */
+export function queryObject(t, catalog) {
   return {
-    connection_name: [...connections][0],
-    objects: tables.map((t) => ({
+    connection: t.connection,
+    object: {
       table: {
         source_catalog: t.database,
         source_schema: t.schema,
@@ -126,6 +121,19 @@ export function ingestionDefinition(tables, catalog) {
             : {}),
         },
       },
-    })),
+    },
+  };
+}
+
+/** One pipeline's managed ingestion objects; they share one connection. */
+export function ingestionDefinition(objects) {
+  const connections = new Set(objects.map((o) => o.connection));
+  connections.size === 1 ||
+    fail(
+      "One managed ingestion pipeline reads through one Unity Catalog connection",
+    );
+  return {
+    connection_name: [...connections][0],
+    objects: objects.map((o) => o.object),
   };
 }

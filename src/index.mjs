@@ -3,6 +3,10 @@ import { validateIngestionPlan, renderIngestion } from "./render.mjs";
 import { expandIngestion } from "./standards.ts";
 import { expandQueryIngestion, queryStandard } from "./query-ingestion.mjs";
 import {
+  expandSharePointIngestion,
+  sharePointStandard,
+} from "./sharepoint-ingestion.mjs";
+import {
   expandPublication,
   validatePublication,
   renderPublication,
@@ -46,17 +50,19 @@ export function expand(request) {
   const expanded =
     standard === "snapshot-publication@v1"
       ? expandPublication(request)
-      : standard === queryStandard
-        ? expandQueryIngestion(
-            request.flow,
-            request.providerSource,
-            request.columns,
-          )
-        : expandIngestion(
-            request.flow,
-            request.providerSource,
-            request.columns,
-          );
+      : standard === sharePointStandard
+        ? expandSharePointIngestion(request.flow, request.providerSource)
+        : standard === queryStandard
+          ? expandQueryIngestion(
+              request.flow,
+              request.providerSource,
+              request.columns,
+            )
+          : expandIngestion(
+              request.flow,
+              request.providerSource,
+              request.columns,
+            );
   expanded.steps = expanded.steps.map((step) => ({
     ...step,
     uses: step.select?.some(

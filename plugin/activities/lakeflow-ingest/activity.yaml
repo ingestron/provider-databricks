@@ -18,6 +18,7 @@ optionsSchema:
             change-feed-with-history@v1,
             append-only@v1,
             query-ingestion@v1,
+            sharepoint-ingestion@v1,
           ],
       }
     pipeline: { type: string }
@@ -44,7 +45,7 @@ generator:
 requirements:
   execution: databricks-lakeflow
   features: []
-  sourceKinds: [files, adls, uc-connection]
+  sourceKinds: [files, adls, uc-connection, sharepoint]
   evidence: offline
 templates:
   - source: ./append.sql.j2

@@ -432,15 +432,15 @@ var require_nunjucks = __commonJS({
               var key = _toPrimitive(arg, "string");
               return typeof key === "symbol" ? key : String(key);
             }
-            function _toPrimitive(input2, hint) {
+            function _toPrimitive(input2, hint2) {
               if (typeof input2 !== "object" || input2 === null) return input2;
               var prim = input2[Symbol.toPrimitive];
               if (prim !== void 0) {
-                var res = prim.call(input2, hint || "default");
+                var res = prim.call(input2, hint2 || "default");
                 if (typeof res !== "object") return res;
                 throw new TypeError("@@toPrimitive must return a primitive value.");
               }
-              return (hint === "string" ? String : Number)(input2);
+              return (hint2 === "string" ? String : Number)(input2);
             }
             function _inheritsLoose(subClass, superClass) {
               subClass.prototype = Object.create(superClass.prototype);
@@ -883,15 +883,15 @@ var require_nunjucks = __commonJS({
               var key = _toPrimitive(arg, "string");
               return typeof key === "symbol" ? key : String(key);
             }
-            function _toPrimitive(input2, hint) {
+            function _toPrimitive(input2, hint2) {
               if (typeof input2 !== "object" || input2 === null) return input2;
               var prim = input2[Symbol.toPrimitive];
               if (prim !== void 0) {
-                var res = prim.call(input2, hint || "default");
+                var res = prim.call(input2, hint2 || "default");
                 if (typeof res !== "object") return res;
                 throw new TypeError("@@toPrimitive must return a primitive value.");
               }
-              return (hint === "string" ? String : Number)(input2);
+              return (hint2 === "string" ? String : Number)(input2);
             }
             function _inheritsLoose(subClass, superClass) {
               subClass.prototype = Object.create(superClass.prototype);
@@ -1289,7 +1289,7 @@ var require_nunjucks = __commonJS({
                 this.inBlock = false;
                 this.throwOnUndefined = throwOnUndefined;
               };
-              _proto.fail = function fail3(msg, lineno, colno) {
+              _proto.fail = function fail4(msg, lineno, colno) {
                 if (lineno !== void 0) {
                   lineno += 1;
                 }
@@ -2787,7 +2787,7 @@ var require_nunjucks = __commonJS({
                 }
                 return new lib.TemplateError(msg, lineno, colno);
               };
-              _proto.fail = function fail3(msg, lineno, colno) {
+              _proto.fail = function fail4(msg, lineno, colno) {
                 throw this.error(msg, lineno, colno);
               };
               _proto.skip = function skip(type) {
@@ -6104,16 +6104,16 @@ function templateRenderer(templates) {
     trimBlocks: true,
     lstripBlocks: true
   });
-  const identifier3 = (value) => {
+  const identifier4 = (value) => {
     if (typeof value !== "string" || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(value))
       throw new Error(`Invalid SQL identifier: ${value}`);
     return "`" + value + "`";
   };
-  env.addFilter("identifier", identifier3);
+  env.addFilter("identifier", identifier4);
   env.addFilter("relation", (value) => {
     if (typeof value !== "string")
       throw new Error("relation requires a dotted name");
-    return value.split(".").map(identifier3).join(".");
+    return value.split(".").map(identifier4).join(".");
   });
   env.addFilter("sql_string", (value) => {
     if (typeof value !== "string")
@@ -6200,14 +6200,10 @@ function validateQueryNode(n) {
     "Query ingestion needs a Unity Catalog connection and source database, schema and table"
   );
 }
-function ingestionDefinition(tables, catalog) {
-  const connections = new Set(tables.map((t) => t.connection));
-  connections.size === 1 || fail(
-    "One query ingestion pipeline reads through one Unity Catalog connection"
-  );
+function queryObject(t, catalog) {
   return {
-    connection_name: [...connections][0],
-    objects: tables.map((t) => ({
+    connection: t.connection,
+    object: {
       table: {
         source_catalog: t.database,
         source_schema: t.schema,
@@ -6221,7 +6217,17 @@ function ingestionDefinition(tables, catalog) {
           ...t.cursor ? { query_based_connector_config: { cursor_columns: [t.cursor] } } : {}
         }
       }
-    }))
+    }
+  };
+}
+function ingestionDefinition(objects) {
+  const connections = new Set(objects.map((o) => o.connection));
+  connections.size === 1 || fail(
+    "One managed ingestion pipeline reads through one Unity Catalog connection"
+  );
+  return {
+    connection_name: [...connections][0],
+    objects: objects.map((o) => o.object)
   };
 }
 
@@ -6301,8 +6307,8 @@ function renderResources(plan, pipelines, put) {
   const existingIds = /* @__PURE__ */ new Set();
   for (const [alias, group] of pipelines) {
     check(
-      !group.query?.length || !group.sources.length,
-      `${alias}: a pipeline cannot mix query ingestion with file or transformation sources`
+      !group.managed?.length || !group.sources.length,
+      `${alias}: a pipeline cannot mix managed ingestion with file or transformation sources`
     );
     const config2 = settings.pipelines?.[alias] ?? { ownership: "managed" };
     const external = config2.ownership === "external";
@@ -6382,15 +6388,10 @@ function renderResources(plan, pipelines, put) {
             catalog: binding.catalog,
             schema,
             serverless: true,
-            channel: "CURRENT",
+            channel: group.channel ?? "CURRENT",
             continuous: false,
             development: settings.mode === "development",
-            ...group.query?.length ? {
-              ingestion_definition: ingestionDefinition(
-                group.query,
-                binding.catalog
-              )
-            } : {
+            ...group.managed?.length ? { ingestion_definition: ingestionDefinition(group.managed) } : {
               libraries: group.sources.map((path) => ({
                 [path.endsWith(".ipynb") ? "notebook" : "file"]: {
                   path: "../" + path
@@ -6622,7 +6623,90 @@ Offline schema, syntax and synthetic tests do not establish any of those native 
   return ownership.join("\n");
 }
 
+// src/sharepoint-ingestion.mjs
+var fail2 = (message) => {
+  throw new Error(message);
+};
+var identifier2 = (v) => typeof v === "string" && /^[A-Za-z_][A-Za-z0-9_]*$/.test(v);
+var sharePointStandard = "sharepoint-ingestion@v1";
+var formats = ["csv", "json", "excel", "parquet", "xml", "avro", "text"];
+function expandSharePointIngestion(flow, providerSource) {
+  const config2 = flow.ingestion ?? {};
+  for (const key of Object.keys(config2))
+    ["standard", "pipeline", "target"].includes(key) || fail2(`Unsupported SharePoint ingestion setting ${key}`);
+  typeof config2.pipeline === "string" && /^[A-Za-z0-9_-]+$/.test(config2.pipeline) || fail2("A logical pipeline alias is required");
+  config2.target && Object.keys(config2.target).every((k) => k === "schema") && identifier2(config2.target.schema) || fail2("SharePoint ingestion target needs only a destination schema");
+  Object.keys(flow.defaults?.with ?? {}).length && fail2("Ingestion standards own their processing");
+  const steps = Object.entries(flow.tables ?? {}).map(([table, value]) => {
+    value.ingestion === void 0 && !Object.keys(value.steps ?? {}).length || fail2(`${table}: SharePoint ingestion has no table settings`);
+    return {
+      id: `ingest_${table}`,
+      uses: "lakeflow-ingest@v1",
+      select: [table],
+      with: {
+        standard: sharePointStandard,
+        pipeline: config2.pipeline,
+        target: config2.target,
+        keys: []
+      }
+    };
+  });
+  return {
+    steps,
+    recovery: {
+      standard: sharePointStandard,
+      provider: providerSource,
+      capture: "managed-incremental",
+      replaySource: "source-site",
+      retention: "source-owned",
+      actualCompleteness: "unverified",
+      detail: "Lakeflow Connect tracks which files it has read; history tracking (SCD type 2) is not supported by this connector.",
+      assumptions: [
+        "The Unity Catalog connection has read access to the site through OAuth."
+      ]
+    }
+  };
+}
+function validateSharePointNode(n) {
+  const s = n.source ?? {};
+  for (const key of Object.keys(s))
+    ["kind", "connection", "site", "path", "entity", "format"].includes(key) || fail2(`Unsupported SharePoint source setting ${key}`);
+  s.kind === "sharepoint" && typeof s.connection === "string" && s.connection.length > 0 || fail2("SharePoint ingestion needs a Unity Catalog connection");
+  typeof s.site === "string" && /^https:\/\/[^\s/]+\/sites\/[^\s]+[^/]$/.test(s.site) || fail2("site must be an https SharePoint site URL without a trailing slash");
+  typeof s.path === "string" && s.path.length > 0 && !s.path.startsWith("/") && !s.path.split("/").some((part) => part === ".." || part === "") || fail2("path must be a relative folder or Lists/<name> inside the site");
+  ["file", "list"].includes(s.entity ?? "file") || fail2("entity must be file or list");
+  (s.entity ?? "file") === "list" ? s.format === void 0 || fail2("format applies to files only") : formats.includes(s.format) || fail2(`format must be one of ${formats.join(", ")}`);
+}
+var hint = (c) => "`" + c.name + "` " + c.type;
+function sharePointObject(s, columns, destination) {
+  const list = (s.entity ?? "file") === "list";
+  return {
+    connection: s.connection,
+    object: {
+      table: {
+        destination_catalog: destination.catalog,
+        destination_schema: destination.schema,
+        destination_table: destination.table,
+        connector_options: {
+          sharepoint_options: {
+            entity_type: list ? "LIST" : "FILE",
+            url: `${s.site}/${s.path}`,
+            ...list ? {} : {
+              file_ingestion_options: {
+                format: s.format.toUpperCase(),
+                schema_evolution_mode: "NONE",
+                schema_hints: columns.map(hint).join(", ")
+              }
+            }
+          }
+        }
+      }
+    }
+  };
+}
+
 // src/render.mjs
+var managedStandards = [queryStandard, sharePointStandard];
 var check2 = (ok, message) => {
   if (!ok) throw new Error(message);
 };
@@ -6716,12 +6800,13 @@ function validateIngestionPlan(plan) {
     relation(name2);
     check2(!outputs.has(name2), `Duplicate dataset target ${name2}`);
     outputs.add(name2);
-    if (kind(n) === "lakeflow-ingest" && n.with.standard === queryStandard) {
+    if (kind(n) === "lakeflow-ingest" && managedStandards.includes(n.with.standard)) {
       check2(
         plan.flows.find((f) => f.id === n.flow)?.ingestion,
         "Use flow.ingestion to select lakeflow-ingest"
       );
-      validateQueryNode(n);
+      if (n.with.standard === queryStandard) validateQueryNode(n);
+      else validateSharePointNode(n);
     } else if (kind(n) === "lakeflow-ingest") {
       check2(
         plan.flows.find((f) => f.id === n.flow)?.ingestion,
@@ -6846,18 +6931,27 @@ function renderIngestion(plan) {
       group.sources.push(stem + ".sql");
       continue;
     }
-    if (n.with.standard === queryStandard) {
-      group.query = [
-        ...group.query ?? [],
-        {
-          ...n.source,
-          history: n.with.history,
-          keys: n.with.keys,
-          cursor: n.with.cursor,
-          destinationSchema: n.with.schema ?? n.with.target.schema,
-          destinationTable: n.with.table
-        }
+    if (managedStandards.includes(n.with.standard)) {
+      const destination = {
+        catalog: plan.bindings[n.binding].catalog,
+        schema: n.with.schema ?? n.with.target.schema,
+        table: n.with.table
+      };
+      group.managed = [
+        ...group.managed ?? [],
+        n.with.standard === queryStandard ? queryObject(
+          {
+            ...n.source,
+            history: n.with.history,
+            keys: n.with.keys,
+            cursor: n.with.cursor,
+            destinationSchema: destination.schema,
+            destinationTable: destination.table
+          },
+          destination.catalog
+        ) : sharePointObject(n.source, n.columns, destination)
       ];
+      if (n.with.standard === sharePointStandard) group.channel = "PREVIEW";
       continue;
     }
     const w = n.with, s = n.source;
@@ -25916,21 +26010,21 @@ var OPERATORS = [
   "mustNotBeBetween"
 ];
 var ROW_LEVEL = /* @__PURE__ */ new Set(["nullValues", "missingValues", "invalidValues"]);
-var fail2 = (message) => {
+var fail3 = (message) => {
   throw new Error(message);
 };
 function sqlShape(id2, text, kind2) {
   const stripped = String(text).replace(/'(?:[^'\\]|\\.|'')*'/g, "''").replace(/`[^`]*`/g, "``").replace(/"[^"]*"/g, '""');
   if (/--|\/\*|;/.test(stripped))
-    fail2(`${id2}: ${kind2} must be one statement without comments or semicolons`);
+    fail3(`${id2}: ${kind2} must be one statement without comments or semicolons`);
   if (/\b(INSERT|UPDATE|DELETE|MERGE|DROP|CREATE|ALTER|TRUNCATE|GRANT|REVOKE|EXEC|EXECUTE|CALL|USE|SET|OPTIMIZE|VACUUM|COPY|REFRESH|CACHE|UNCACHE|INTO|RESTORE|MSCK|LOAD)\b/i.test(
     stripped
   ))
-    fail2(`${id2}: ${kind2} must only read data`);
+    fail3(`${id2}: ${kind2} must only read data`);
   if (kind2 === "query" && !/^\s*(SELECT|WITH)\b/i.test(stripped))
-    fail2(`${id2}: a sql rule query must start with SELECT or WITH`);
+    fail3(`${id2}: a sql rule query must start with SELECT or WITH`);
   if (kind2 === "predicate" && /\bSELECT\b/i.test(stripped))
-    fail2(`${id2}: a databricks rule is a row predicate without subqueries`);
+    fail3(`${id2}: a databricks rule is a row predicate without subqueries`);
   return text;
 }
 function parse3(rule, table, column) {
@@ -25941,7 +26035,7 @@ function parse3(rule, table, column) {
   if (type === "sql" || type === "custom") {
     const present2 = OPERATORS.filter((o) => rule[o] !== void 0);
     if (type === "sql" && present2.length !== 1)
-      fail2(`${where}: a sql rule needs exactly one comparison`);
+      fail3(`${where}: a sql rule needs exactly one comparison`);
     return {
       id: String(rule.id ?? `${where}.${type === "sql" ? "sql" : rule.engine}`),
       table,
@@ -25960,10 +26054,10 @@ function parse3(rule, table, column) {
   }
   if (type !== "library") return void 0;
   if (!METRICS.includes(rule.metric))
-    fail2(`${where}: unsupported library metric ${rule.metric}`);
+    fail3(`${where}: unsupported library metric ${rule.metric}`);
   const present = OPERATORS.filter((o) => rule[o] !== void 0);
   if (present.length !== 1)
-    fail2(`${where}: a library rule needs exactly one comparison`);
+    fail3(`${where}: a library rule needs exactly one comparison`);
   return {
     id: String(rule.id ?? `${where}.${rule.metric}`),
     table,
@@ -26040,7 +26134,7 @@ function predicate(rule, column) {
     return valid.length ? `${c} IS NULL OR ${c} IN (${valid.join(", ")})` : `${c} IS NULL`;
   }
   if (typeof rule.arguments.pattern !== "string")
-    fail2(
+    fail3(
       `${rule.id}: invalidValues needs arguments.validValues or arguments.pattern`
     );
   const pattern = `^(?:${rule.arguments.pattern})$`;
@@ -26059,7 +26153,7 @@ function qualityChecks(contract, columns, standard) {
     (object2.properties ?? []).map((p) => [p.name, p.physicalName ?? p.name])
   );
   const byName = new Map(columns.map((c) => [c.name, c]));
-  const column = (rule, name2) => byName.get(physical.get(name2) ?? name2) ?? fail2(`${rule.id}: unknown contract column ${name2}`);
+  const column = (rule, name2) => byName.get(physical.get(name2) ?? name2) ?? fail3(`${rule.id}: unknown contract column ${name2}`);
   const snapshot = standard === "snapshot-with-history@v1";
   const used = /* @__PURE__ */ new Set();
   const checks = [];
@@ -26068,7 +26162,7 @@ function qualityChecks(contract, columns, standard) {
     if (rule.metric === "custom") {
       if (rule.engine !== "databricks") continue;
       if (typeof rule.implementation !== "string")
-        fail2(
+        fail3(
           `${rule.id}: a databricks rule implementation is a SQL predicate string`
         );
       checks.push({
@@ -26105,11 +26199,11 @@ function qualityChecks(contract, columns, standard) {
     if (!snapshot) {
       if (!ROW_LEVEL.has(rule.metric)) continue;
       if (!rule.column)
-        fail2(
+        fail3(
           `${rule.id}: ${rule.metric} needs a column on streaming standards`
         );
       if (!zero)
-        fail2(
+        fail3(
           `${rule.id}: streaming Lakeflow expectations check each row; use mustBe: 0 or a complete-snapshot standard`
         );
     }
@@ -26118,9 +26212,9 @@ function qualityChecks(contract, columns, standard) {
       (p) => column(rule, p).name
     );
     if (rule.metric === "duplicateValues" && !target2 && !properties.length)
-      fail2(`${rule.id}: table duplicateValues needs arguments.properties`);
+      fail3(`${rule.id}: table duplicateValues needs arguments.properties`);
     if (ROW_LEVEL.has(rule.metric) && !target2)
-      fail2(`${rule.id}: ${rule.metric} needs a column`);
+      fail3(`${rule.id}: ${rule.metric} needs a column`);
     checks.push({
       id: rule.id,
       name: constraint(rule.id, used),
@@ -26141,15 +26235,15 @@ function qualityChecks(contract, columns, standard) {
 var check4 = (ok, _code, message) => {
   if (!ok) throw new Error(message);
 };
-var identifier2 = external_exports.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/);
+var identifier3 = external_exports.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/);
 var tableIngestionSchema = external_exports.object({
-  freshness: external_exports.object({ column: identifier2, maximumAgeHours: external_exports.number().positive() }).strict().optional(),
+  freshness: external_exports.object({ column: identifier3, maximumAgeHours: external_exports.number().positive() }).strict().optional(),
   snapshotPolicy: snapshotPolicySchema.optional(),
-  expectations: external_exports.record(identifier2, external_exports.string().min(1)).optional(),
-  keys: external_exports.array(identifier2).min(1).optional(),
-  sequenceBy: external_exports.array(identifier2).min(1).max(1).optional(),
-  operationColumn: identifier2.optional(),
-  trackedColumns: external_exports.array(identifier2).min(1).optional()
+  expectations: external_exports.record(identifier3, external_exports.string().min(1)).optional(),
+  keys: external_exports.array(identifier3).min(1).optional(),
+  sequenceBy: external_exports.array(identifier3).min(1).max(1).optional(),
+  operationColumn: identifier3.optional(),
+  trackedColumns: external_exports.array(identifier3).min(1).optional()
 }).strict().optional();
 var ingestionSchema = external_exports.object({
   standard: external_exports.enum([
@@ -26159,7 +26253,7 @@ var ingestionSchema = external_exports.object({
   ]),
   snapshotPolicy: snapshotPolicySchema.optional(),
   pipeline: external_exports.string().regex(/^[A-Za-z0-9_-]+$/),
-  target: external_exports.object({ schema: identifier2, historySchema: identifier2.optional() }).strict(),
+  target: external_exports.object({ schema: identifier3, historySchema: identifier3.optional() }).strict(),
   source: external_exports.object({
     delivery: external_exports.enum([
       "complete-snapshot",
@@ -26734,7 +26828,7 @@ function render(plan) {
 }
 function expand(request) {
   const standard = request.flow.ingestion?.standard;
-  const expanded = standard === "snapshot-publication@v1" ? expandPublication(request) : standard === queryStandard ? expandQueryIngestion(
+  const expanded = standard === "snapshot-publication@v1" ? expandPublication(request) : standard === sharePointStandard ? expandSharePointIngestion(request.flow, request.providerSource) : standard === queryStandard ? expandQueryIngestion(
     request.flow,
     request.providerSource,
     request.columns

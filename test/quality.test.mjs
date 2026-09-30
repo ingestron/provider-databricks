@@ -485,3 +485,68 @@ test("query ingestion generates a Lakeflow Connect pipeline for database tables"
     /SCD_TYPE_1 needs primary keys/,
   );
 });
+
+test("SharePoint files become a managed ingestion object with contract schema hints", () => {
+  const step = expand({
+    providerSource: "test",
+    columns: { orders: columns },
+    flow: {
+      id: "sales",
+      kind: "ingestion",
+      ingestion: {
+        standard: "sharepoint-ingestion@v1",
+        pipeline: "m365",
+        target: { schema: "bronze" },
+      },
+      defaults: { with: {} },
+      tables: { orders: { contract: contract(), steps: {} } },
+    },
+  }).steps[0];
+  const p = plan("sharepoint-ingestion@v1", step);
+  p.nodes[0].source = {
+    kind: "sharepoint",
+    connection: "m365_sp",
+    site: "https://contoso.sharepoint.com/sites/finance",
+    path: "Shared Documents/orders",
+    format: "csv",
+  };
+  p.nodes[0].with = { ...step.with, schema: "bronze", table: "orders" };
+  const pipeline = Object.values(
+    Object.values(render(p)).find((f) => f.value?.resources?.pipelines).value
+      .resources.pipelines,
+  )[0];
+  assert.equal(pipeline.channel, "PREVIEW");
+  assert.deepEqual(
+    pipeline.ingestion_definition.objects[0].table.connector_options,
+    {
+      sharepoint_options: {
+        entity_type: "FILE",
+        url: "https://contoso.sharepoint.com/sites/finance/Shared Documents/orders",
+        file_ingestion_options: {
+          format: "CSV",
+          schema_evolution_mode: "NONE",
+          schema_hints:
+            "`order_id` BIGINT, `status` STRING, `amount` DECIMAL(10,2)",
+        },
+      },
+    },
+  );
+  p.nodes[0].source = {
+    ...p.nodes[0].source,
+    entity: "list",
+    path: "Lists/Orders",
+    format: undefined,
+  };
+  delete p.nodes[0].source.format;
+  const list = Object.values(
+    Object.values(render(p)).find((f) => f.value?.resources?.pipelines).value
+      .resources.pipelines,
+  )[0].ingestion_definition.objects[0].table.connector_options
+    .sharepoint_options;
+  assert.deepEqual(list, {
+    entity_type: "LIST",
+    url: "https://contoso.sharepoint.com/sites/finance/Lists/Orders",
+  });
+  p.nodes[0].source.path = "../other";
+  assert.throws(() => render(p), /relative folder/);
+});

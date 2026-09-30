@@ -361,6 +361,58 @@ sources:
       kind: uc-connection
       connection: "{{binding.connection}}"
       database: "{{binding.database}}"
+  sharepoint:
+    route: native
+    standards:
+      - sharepoint-ingestion@v1
+    capabilities:
+      - snapshot
+      - incremental
+    reference:
+      docs: https://learn.microsoft.com/azure/databricks/ingestion/lakeflow-connect/sharepoint
+      vendorStatus: preview
+      licence: Databricks platform terms; generated files Apache-2.0
+      cost:
+        model: separately-billed
+        pricing: https://www.databricks.com/product/pricing/lakeflow-connect
+        note:
+          Lakeflow Connect ingestion on serverless compute is billed as its own
+          usage
+      access:
+        model: subscription
+        url: https://learn.microsoft.com/azure/databricks/ingestion/lakeflow-connect/sharepoint-source-setup-overview
+        note:
+          A Unity Catalog workspace with serverless compute and an OAuth connection
+          to SharePoint
+      auth:
+        - oauth-u2m
+        - oauth-m2m
+      network:
+        - public
+      maturity: preview
+      verified: 2026-09-30
+      note: Structured files parsed with contract types as schema hints; list
+        ingestion is Beta; generated with the PREVIEW channel used by the
+        documented examples
+    bindingSchema:
+      type: object
+      required:
+        - connection
+        - site
+      properties:
+        connection:
+          type: string
+          minLength: 1
+          maxLength: 255
+        site:
+          type: string
+          minLength: 12
+          maxLength: 500
+      additionalProperties: false
+    source:
+      kind: sharepoint
+      connection: "{{binding.connection}}"
+      site: "{{binding.site}}"
 quality:
   library: {}
   standards:
@@ -400,6 +452,8 @@ standards:
     description: Immutable files to a streaming table
   - id: query-ingestion@v1
     description: Database tables through a Lakeflow Connect query-based connector
+  - id: sharepoint-ingestion@v1
+    description: SharePoint files and lists through the Lakeflow Connect managed connector
   - id: snapshot-publication@v1
     description: Verify immutable Parquet snapshots and conditionally publish an
       ordered delivery index
