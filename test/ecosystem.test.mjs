@@ -66,3 +66,61 @@ test("input protocols, reviewed contract versions and ambiguous source overrides
   r.node.source.path = "override";
   assert.throws(() => model(r), /only requires/);
 });
+test("the history consumer checks the published dataset name, not its own flow's", () => {
+  const r = request();
+  const contract = {
+    version: "1.0.0",
+    schema: [
+      {
+        name: "customers",
+        properties: [
+          {
+            name: "id",
+            logicalType: "integer",
+            physicalType: "BIGINT",
+            primaryKey: true,
+          },
+        ],
+      },
+    ],
+  };
+  r.node = {
+    ...r.node,
+    id: "current/customers/ingest",
+    uses: "lakeflow-ingest-input@v1",
+    flow: "current",
+    source: { from: "requires.completed" },
+    contract,
+    with: {
+      standard: "snapshot-with-history@v1",
+      pipeline: "source",
+      target: { schema: "current", historySchema: "history" },
+      keys: ["id"],
+    },
+    runtime: { options: { deployment: {} } },
+  };
+  const root =
+    "abfss://landing@sample.dfs.core.windows.net/retail/source/customers";
+  r.inputs = {
+    completed: {
+      handover: "files",
+      contract,
+      location: {
+        kind: "files",
+        binding: "files",
+        name: root,
+        format: "parquet",
+        protocol: "ingestron.snapshot-publication/v1",
+        completion: "requires-publication-receipt",
+        dataset: "retail.source.customers",
+        deliveryIndex: root + "/_ingestron/deliveries.json",
+      },
+    },
+  };
+  const result = model(r);
+  assert.equal(result.source.dataset, "retail.source.customers");
+  assert.equal(
+    result.source.deliveryIndex,
+    root + "/_ingestron/deliveries.json",
+  );
+});

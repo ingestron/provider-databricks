@@ -6593,7 +6593,11 @@ function model(request) {
       binding: location.binding,
       path: location.name,
       format: "parquet",
-      ...!publishing ? { deliveryIndex: location.deliveryIndex } : {}
+      ...!publishing ? {
+        deliveryIndex: location.deliveryIndex,
+        // The published index names the upstream dataset; check that name.
+        ...typeof location.dataset === "string" ? { dataset: location.dataset } : {}
+      } : {}
     };
     if (publishing) settings.dataset = location.dataset;
   }
