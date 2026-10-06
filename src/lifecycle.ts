@@ -1,5 +1,8 @@
+import { scheduledJobNames } from "./schedules.mjs";
+import { publishedContract as outputContract } from "./column-mapping.mjs";
 const structuredClone = (value: any) => JSON.parse(JSON.stringify(value));
 import { stringify, parseDocument } from "yaml";
+import { transformationSettings } from "./transformation-authoring.mjs";
 const ingestionStandards = [
   "snapshot-with-history@v1",
   "change-feed-with-history@v1",
@@ -81,6 +84,10 @@ export function author(request: any) {
     file = `flows/${options.id}/flow.yaml`;
   if (options.kind === "ingestion") {
     check(
+      options.transformationSettings === undefined && !options.outputContract,
+      "Output settings apply only to transformations",
+    );
+    check(
       !options.sourceKind || options.sourceKind === "adls",
       "This standard expects existing ADLS/volume deliveries",
     );
@@ -152,6 +159,8 @@ export function author(request: any) {
     );
     let contract: any, pipeline: any;
     for (const flow of resolved.flows) {
+      if ((flow.provider ?? data.defaults.provider) !== request.configuration)
+        continue;
       for (const [tableId, table] of Object.entries(flow.tables ?? {}) as [
         string,
         any,
@@ -188,9 +197,16 @@ export function author(request: any) {
       "DATASET",
       "Choose a published current or transformation dataset",
     );
-    files[`flows/${options.id}/contracts/result.odcs.yaml`] =
-      stringify(contract);
-    files[`flows/${options.id}/sql/transform.sql`] = "SELECT * FROM source\n";
+    const settings = transformationSettings(options.transformationSettings);
+    files[`flows/${options.id}/contracts/result.odcs.yaml`] = stringify(
+      outputContract(options.outputContract ?? contract),
+    );
+    const python = options.language === "python";
+    files[
+      `flows/${options.id}/${python ? "python/transform.py" : "sql/transform.sql"}`
+    ] = python
+      ? 'def transform(inputs):\n    return inputs["source"]\n'
+      : "SELECT * FROM source\n";
     files[file] = stringify({
       apiVersion: "ingestron.flow/v1",
       kind: "transformation",
@@ -203,13 +219,15 @@ export function author(request: any) {
           id: "transform",
           uses: "materialized-view@v1",
           with: {
-            pipelineId: pipeline,
-            targetTable: {
+            pipelineId: settings?.pipelineId ?? pipeline,
+            targetTable: settings?.targetTable ?? {
               $env:
                 options.id.toUpperCase().replaceAll("-", "_") + "_TARGET_TABLE",
             },
             sources: { source: { from: "requires.source" } },
-            sqlFile: "./sql/transform.sql",
+            ...(python
+              ? { pythonFile: "./python/transform.py", entrypoint: "transform" }
+              : { sqlFile: "./sql/transform.sql" }),
           },
         },
       ],
@@ -299,6 +317,10 @@ export function model(request: any) {
     if (publishing) settings.dataset = location.dataset;
   }
   if (node.uses.startsWith("snapshot-publish")) {
+    check(
+      !request.flowContext?.schedule,
+      "Publication scheduling requires its own bounded job preparation",
+    );
     const root = node.runtime.options.publication?.workspaceRoot;
     if (root) claim("workspace-root", root);
     claim("job", `${request.project}_${node.flow}_${node.table}`);
@@ -323,6 +345,19 @@ export function model(request: any) {
       targets: [],
       resources,
     };
+  }
+  if (request.flowContext?.schedule) {
+    check(
+      !node.uses.startsWith("snapshot-publish"),
+      "Publication scheduling requires its own bounded job preparation",
+    );
+    for (const job of scheduledJobNames(
+      request.project,
+      request.environment,
+      node.flow,
+      request.flowContext.schedule,
+    ))
+      claim("job", job.name);
   }
   const deployment = node.runtime.options.deployment ?? {},
     alias = settings.pipeline ?? settings.pipelineId;
@@ -386,6 +421,9 @@ export function model(request: any) {
           (c.physicalName ?? c.name) !== settings.operationColumn &&
           !settings.sequenceBy?.includes(c.physicalName ?? c.name),
       );
+  // The source mapping has already been applied by native ingestion.
+  for (const property of publishedContract.schema[0].properties)
+    delete property.physicalName;
   if (settings.target.historySchema) {
     const history = structuredClone(publishedContract);
     const sequence = settings.sequenceBy?.[0];

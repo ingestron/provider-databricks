@@ -4,10 +4,8 @@ An ingestion standard defines what the source delivers, how it becomes a dataset
 and what can be reconstructed later. It is more than a sequence of activities.
 Use this guide before selecting an architecture or enabling source history.
 
-The first catalogue targets **native Databricks**. ADF and Fabric implementations
-will have their own platform-specific catalogues; they do not inherit Databricks
-features. Existing procedural recipes remain available for earlier experiments,
-but are not the new ingestion-standard model.
+This catalogue describes native Databricks generation. ADF and Fabric have their
+own catalogues. Choose a standard from the installed provider for your source route.
 
 ## Separate meaning, policy and implementation
 
@@ -25,9 +23,9 @@ but are not the new ingestion-standard model.
 | `append-only@v1`              | Immutable JSON or Parquet files                                               | Auto Loader streaming table                                    | Rebuilding requires all original files; updates/deletes are not implemented   |
 
 Timestamp-window extraction is **not CDC**. It may miss deletions and intermediate
-changes. Incremental-current-state ingestion, CSV reader policies and managed
-Lakeflow Connect ingestion are not in this catalogue yet. Do not relabel them as
-one of the supported delivery types.
+changes. The three file delivery standards require their declared upstream format.
+Managed Lakeflow Connect routes use separate standards; they do not replace a
+baseline and full-row change feed.
 
 ## Configure a flow once, then add tables
 
@@ -68,9 +66,33 @@ payloads and multiple sequence columns are not currently supported.
 
 The source binding and path remain under `defaults.source` or `tables.<name>.source`.
 Paths may use the normal environment and table placeholders. The current provider
-reads JSON or Parquet from existing ADLS/Unity Catalog Volume directories. It does
-not extract directly from SQL Server or PostgreSQL. An upstream extractor must
-produce the agreed delivery format.
+reads JSON or Parquet from existing ADLS/Unity Catalog Volume directories. These file standards need an upstream extractor to produce the agreed delivery
+format. For managed database reads, select `query-ingestion@v1`.
+
+## Managed source routes
+
+| Standard                  | Source objects                        | Required configuration                                                                                               |
+| ------------------------- | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `query-ingestion@v1`      | Database tables                       | Existing Unity Catalog connection, database, schema and table; reviewed keys for SCD1/SCD2; optional cursor          |
+| `sharepoint-ingestion@v1` | Folder of structured files or a list  | Existing Unity Catalog connection, HTTPS site and relative path; files declare format; lists omit format             |
+| `saas-ingestion@v1`       | Salesforce, HubSpot or Jira objects   | Existing Unity Catalog connection and supported object API name                                                      |
+| `snapshot-publication@v1` | Completed immutable Parquet snapshots | Reviewed keys, Azure ABFS root, existing secret-scope references, explicit deployment owner, cluster and permissions |
+
+Managed routes generate native ingestion definitions. Preparation does not connect
+to a source or prove completeness. Query cursors refer to physical contract columns.
+Without a cursor, the generated definition omits incremental configuration; confirm
+the intended full-load behaviour in your Databricks environment. An increasing ID
+only tracks new rows when existing rows are immutable. SCD history does not make
+that ID detect updates or deletions.
+
+Public 3.7.0 managed query, SharePoint and SaaS routes do not enforce contract quality rules.
+The default project build blocks unsupported error rules. Explicitly choosing
+`defaults.quality.unsupported: report` records unsupported coverage. Establish
+downstream quality enforcement before promoting such a project.
+
+The private 3.8.0 candidate adds native [after-load checks](managed-quality.md) for
+these managed routes. This is a separate candidate capability, with native cloud
+qualification still open.
 
 ## Retention is an explicit responsibility
 

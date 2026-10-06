@@ -1,6 +1,6 @@
 apiVersion: ingestron.provider/v1
 id: databricks-native
-version: 3.7.0
+version: 3.13.0
 platform: databricks
 renderer:
   apiVersion: ingestron.provider-generation/v1
@@ -30,6 +30,14 @@ compatibility:
     - project-assembly
     - quality-capabilities
     - source-coverage
+    - flow-schedules
+    - resolved-schedule-boundaries
+    - flow-schedule-resource-claims
+    - connector-schedule-fencing
+    - python-source-artifacts
+    - published-transformation-quality
+    - transformation-authoring-settings
+    - typed-transformation-outputs
 sources:
   azure-blob:
     route: native
@@ -610,6 +618,57 @@ quality:
         invalidValues: at-load
       engines:
         databricks: at-load
+    query-ingestion@v1:
+      library:
+        nullValues: after-load
+        missingValues: after-load
+        invalidValues: after-load
+        duplicateValues: after-load
+        rowCount: after-load
+      sql: after-load
+      engines:
+        databricks: after-load
+    sharepoint-ingestion@v1:
+      library:
+        nullValues: after-load
+        missingValues: after-load
+        invalidValues: after-load
+        duplicateValues: after-load
+        rowCount: after-load
+      sql: after-load
+      engines:
+        databricks: after-load
+    saas-ingestion@v1:
+      library:
+        nullValues: after-load
+        missingValues: after-load
+        invalidValues: after-load
+        duplicateValues: after-load
+        rowCount: after-load
+      sql: after-load
+      engines:
+        databricks: after-load
+  transformations:
+    python:
+      library:
+        nullValues: after-load
+        missingValues: after-load
+        invalidValues: after-load
+        duplicateValues: after-load
+        rowCount: after-load
+      sql: after-load
+      engines:
+        databricks: after-load
+    sql:
+      library:
+        nullValues: after-load
+        missingValues: after-load
+        invalidValues: after-load
+        duplicateValues: after-load
+        rowCount: after-load
+      sql: after-load
+      engines:
+        databricks: after-load
 planner:
   apiVersion: ingestron.provider-planning/v1
   module: ./index.mjs
@@ -770,6 +829,17 @@ capabilities:
       activities:
         - snapshot-publish
         - lakeflow-ingest
+  schedules:
+    - interval
+    - daily
+    - weekly
+    - monthly
+  transformationLanguages:
+    - sql
+    - python
+  typedTransformationLanguages:
+    - sql
+    - python
 connectorRuntimes:
   ingestron.snapshot/python/v1:
     selectionSchema:
@@ -887,3 +957,23 @@ connectorRuntimes:
 projectAssembly:
   apiVersion: ingestron.project-assembly/v1
   command: project assemble
+authoring:
+  transformationSettingsSchema:
+    type: object
+    required:
+      - pipelineId
+      - targetTable
+    additionalProperties: false
+    properties:
+      pipelineId:
+        type: string
+        minLength: 1
+        maxLength: 100
+        title: Pipeline alias
+        description: Logical alias in this project's generated bundle.
+      targetTable:
+        type: string
+        minLength: 1
+        maxLength: 500
+        title: Output table
+        description: catalogue.schema.table, for example {{env}}_retail.silver.orders.

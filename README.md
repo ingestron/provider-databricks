@@ -27,6 +27,9 @@ contracts and plugins.
 | `snapshot-with-history@v1`    | Complete versioned snapshots to native history and a current view |
 | `change-feed-with-history@v1` | Baseline and full-row change events to history and a current view |
 | `append-only@v1`              | Immutable files to a streaming table                              |
+| `query-ingestion@v1`          | Managed database tables through a Unity Catalog connection        |
+| `sharepoint-ingestion@v1`     | Managed SharePoint folders or lists                               |
+| `saas-ingestion@v1`           | Managed Salesforce, HubSpot or Jira objects                       |
 | `snapshot-publication@v1`     | Verify immutable Parquet snapshots, then publish a delivery index |
 
 ## Contract quality rules
@@ -49,13 +52,26 @@ runs.
 
 Rules are never used to drop rows. Duplicate, row-count and SQL rules on streaming
 standards, and rules for other engines, are reported as not enforced. Requires
-Ingestron core 0.12.12 or later.
+Ingestron core 0.12.12 or later. In public 3.7.0, managed query, SharePoint and SaaS routes declare
+contract quality unsupported. A required error rule blocks the project build;
+`defaults.quality.unsupported: report` explicitly accepts reporting and does not
+enforce the rule.
 
 Guides: [choose an ingestion standard](docs/ingestion-standards.md),
 [prepare a project for operations](docs/databricks-operations.md),
 [snapshot publication](docs/snapshot-publication.md) and
 [SQL and Python templates](docs/sql-python-templates.md).
 Examples are in [examples](examples); all data in them is synthetic.
+
+## Private candidate 3.8.0
+
+The private candidate adds after-load contract checks for managed database,
+SharePoint and SaaS ingestion. It generates one native quality notebook per
+pipeline. Required failures stop dependent native job tasks. Checks read one
+committed Delta version per table and evaluate current rows for SCD2.
+They do not roll back already ingested data or the native checkpoint. Public
+installation references above remain 3.7.0; the candidate is not a release.
+See [managed quality semantics](docs/managed-quality.md).
 
 ## Status
 
@@ -68,7 +84,26 @@ generated assets before using them.
 Use Node 22, pnpm 10.15.0 and Python 3.12, then run `pnpm install` and
 `pnpm validate`. The `plugin` folder is build output; rebuild it with `pnpm build`.
 
+Run the separate offline installed-package gate with an existing qualified CLI:
+
+```sh
+INGESTRON_ACCEPTANCE_CLI_PACKAGE=/absolute/path/to/node_modules/ingestron \
+INGESTRON_ACCEPTANCE_OUTPUT=/absolute/path/to/isolated/acceptance \
+pnpm acceptance
+```
+
+The gate snapshots the built provider into a temporary local Git repository and
+installs its exact version through the installed compiler. It downloads no packages
+and makes no source or workspace calls. See [acceptance scope](docs/installed-native-acceptance.md).
+
 ## Licence
 
 Apache-2.0, copyright Otrera Limited. Third-party material keeps its own terms;
 see [NOTICE](NOTICE). Report security issues as described in [SECURITY.md](SECURITY.md).
+
+Private candidate file ingestion applies [column mappings](docs/column-mapping.md) to native output, quality/history keys and downstream contracts.
+
+Private candidate complete snapshots use [bounded native quality checks](docs/native-snapshot-quality.md) before their CDC callback applies a delivery.
+Private candidate file temporal fields use [exact calendar and timezone-less timestamp checks](docs/native-temporal-types.md), including source Parquet footer inspection. Streamed Parquet temporal qualification remains open.
+
+Private candidate materialised views support [reviewed Python batch transformations](docs/python-transformations.md) with typed output and after-load quality checks.

@@ -1,4 +1,7 @@
+import { renderScheduledJobs, scheduledClosures } from "./schedules.mjs";
+import { outputSetting } from "./column-mapping.mjs";
 // Native resource composition. Activity templates contain table logic only.
+import { qualityNotebook } from "./managed-quality.mjs";
 import { ingestionDefinition } from "./query-ingestion.mjs";
 const check = (condition, message) => {
   if (!condition) throw new Error(message);
@@ -54,6 +57,7 @@ export function deploymentSettings(plan) {
 }
 export function renderResources(plan, pipelines, put) {
   const settings = deploymentSettings(plan);
+  scheduledClosures(plan);
   const task = (key) => "refresh_" + key.replaceAll("-", "_");
   const resource = (key) => "pipeline_" + key.replaceAll("-", "_");
   check(
@@ -194,46 +198,23 @@ export function renderResources(plan, pipelines, put) {
         : `- ${alias}: project-managed resource ${key}; source files are attached by the bundle.`,
     );
   }
+  const qualityTask = (alias) => "quality_" + alias.replaceAll("-", "_");
+  const completion = (alias) =>
+    pipelines.get(alias).quality?.length ? qualityTask(alias) : task(alias);
+  for (const [alias, group] of pipelines)
+    if (group.quality?.length)
+      put(
+        `operations/${qualityTask(alias)}.ipynb`,
+        "json",
+        qualityNotebook(plan, group.quality),
+      );
   const freshness = plan.nodes.filter((n) => n.with.freshness);
   if (freshness.length) {
-    const cells = [
-      {
-        cell_type: "markdown",
-        metadata: {},
-        source: [
-          "# Check data freshness\n\nRuns after pipeline updates, including updates with no new files. A stale or empty dataset fails this job task and uses the job failure notification. Keep the job scheduled: this cannot alert while the job itself is not running. Native pipeline backlog notifications are not supported by this job task type.\n",
-        ],
-      },
-    ];
-    for (const n of freshness) {
-      const name = [binding.catalog, n.with.schema, n.with.table]
-        .map((v) => "`" + v + "`")
-        .join(".");
-      const seconds = Math.ceil(n.with.freshness.maximumAgeHours * 3600);
-      const query = `SELECT MAX(\`${n.with.freshness.column}\`) >= current_timestamp() - INTERVAL ${seconds} SECONDS AS fresh FROM ${name}`;
-      cells.push({
-        cell_type: "code",
-        metadata: {},
-        execution_count: null,
-        outputs: [],
-        source: [
-          `# ${n.flow}.${n.table}: latest business timestamp must be within ${seconds} seconds.\nif spark.sql(${JSON.stringify(query)}).first()["fresh"] is not True:\n    raise ValueError(${JSON.stringify("Stale or empty dataset: " + name)})\n`,
-        ],
-      });
-    }
-    put("operations/freshness.ipynb", "json", {
-      nbformat: 4,
-      nbformat_minor: 5,
-      metadata: {
-        kernelspec: {
-          display_name: "Python 3",
-          language: "python",
-          name: "python3",
-        },
-        language_info: { name: "python" },
-      },
-      cells,
-    });
+    put(
+      "operations/freshness.ipynb",
+      "json",
+      freshnessNotebook(plan, binding, freshness),
+    );
   }
   const job = settings.job ?? {};
   check(
@@ -245,71 +226,83 @@ export function renderResources(plan, pipelines, put) {
     bundle: { name: plan.project, databricks_cli_version: ">=0.294.0" },
     include: ["resources/*.yml", "targets/*.yml"],
   });
-  put("resources/ingestion.job.yml", "yaml", {
-    resources: {
-      jobs: {
-        processing: {
-          name: job.name ?? plan.names.jobs[plan.nodes[0].flow],
-          max_concurrent_runs: 1,
-          queue: { enabled: true },
-          ...(job.timeoutSeconds
-            ? { timeout_seconds: job.timeoutSeconds }
-            : {}),
-          ...(job.permissions ? { permissions: job.permissions } : {}),
-          ...(job.notifications
-            ? { email_notifications: job.notifications }
-            : {}),
-          ...(job.durationWarningSeconds
-            ? {
-                health: {
-                  rules: [
-                    {
-                      metric: "RUN_DURATION_SECONDS",
-                      op: "GREATER_THAN",
-                      value: job.durationWarningSeconds,
-                    },
-                  ],
-                },
-              }
-            : {}),
-          ...(job.schedule ? { schedule: job.schedule } : {}),
-          tasks: [
-            ...[...pipelines].map(([alias, group]) => ({
-              task_key: task(alias),
-              pipeline_task: {
-                pipeline_id: ids.get(alias),
-                full_refresh: false,
+  const processing = {
+    name: job.name ?? plan.names.jobs[plan.nodes[0].flow],
+    max_concurrent_runs: 1,
+    queue: { enabled: true },
+    ...(job.timeoutSeconds ? { timeout_seconds: job.timeoutSeconds } : {}),
+    ...(job.permissions ? { permissions: job.permissions } : {}),
+    ...(job.notifications ? { email_notifications: job.notifications } : {}),
+    ...(job.durationWarningSeconds
+      ? {
+          health: {
+            rules: [
+              {
+                metric: "RUN_DURATION_SECONDS",
+                op: "GREATER_THAN",
+                value: job.durationWarningSeconds,
               },
-              max_retries: job.maxRetries ?? 2,
-              min_retry_interval_millis:
-                (job.retryIntervalSeconds ?? 60) * 1000,
-              ...(group.needs.size
-                ? {
-                    depends_on: [...group.needs].map((p) => ({
-                      task_key: task(p),
-                    })),
-                  }
-                : {}),
-            })),
-            ...(freshness.length
-              ? [
-                  {
-                    task_key: "check_freshness",
-                    notebook_task: {
-                      notebook_path: "../operations/freshness.ipynb",
-                    },
-                    depends_on: [...pipelines.keys()].map((p) => ({
-                      task_key: task(p),
-                    })),
-                    max_retries: 0,
-                  },
-                ]
-              : []),
-          ],
+            ],
+          },
+        }
+      : {}),
+    ...(job.schedule ? { schedule: job.schedule } : {}),
+    tasks: [
+      ...[...pipelines].map(([alias, group]) => ({
+        task_key: task(alias),
+        pipeline_task: {
+          pipeline_id: ids.get(alias),
+          full_refresh: false,
         },
-      },
-    },
+        max_retries: job.maxRetries ?? 2,
+        min_retry_interval_millis: (job.retryIntervalSeconds ?? 60) * 1000,
+        ...(group.needs.size
+          ? {
+              depends_on: [...group.needs].map((p) => ({
+                task_key: completion(p),
+              })),
+            }
+          : {}),
+      })),
+      ...[...pipelines]
+        .filter(([, group]) => group.quality?.length)
+        .map(([alias]) => ({
+          task_key: qualityTask(alias),
+          run_if: "ALL_SUCCESS",
+          notebook_task: {
+            notebook_path: `../operations/${qualityTask(alias)}.ipynb`,
+          },
+          depends_on: [{ task_key: task(alias) }],
+          max_retries: 0,
+        })),
+      ...(freshness.length
+        ? [
+            {
+              task_key: "check_freshness",
+              notebook_task: {
+                notebook_path: "../operations/freshness.ipynb",
+              },
+              depends_on: [...pipelines.keys()].map((p) => ({
+                task_key: completion(p),
+              })),
+              max_retries: 0,
+            },
+          ]
+        : []),
+    ],
+  };
+  put("resources/ingestion.job.yml", "yaml", {
+    resources: { jobs: { processing } },
   });
+  renderScheduledJobs(
+    plan,
+    pipelines,
+    ids,
+    processing,
+    put,
+    qualityNotebook,
+    (nodes) => freshnessNotebook(plan, binding, nodes),
+  );
   put(`targets/${plan.environment}.yml`, "yaml", {
     targets: {
       [plan.environment]: {
@@ -419,4 +412,46 @@ Offline schema, syntax and synthetic tests do not establish any of those native 
 `,
   );
   return ownership.join("\n");
+}
+
+function freshnessNotebook(plan, binding, nodes) {
+  const cells = [
+    {
+      cell_type: "markdown",
+      metadata: {},
+      source: [
+        "# Check data freshness\n\nRuns after pipeline updates, including updates with no new files. A stale or empty dataset fails this job task and uses the job failure notification. Keep the job scheduled: this cannot alert while the job itself is not running. Native pipeline backlog notifications are not supported by this job task type.\n",
+      ],
+    },
+  ];
+  for (const n of nodes) {
+    const name = [binding.catalog, n.with.schema, n.with.table]
+      .map((v) => "`" + v + "`")
+      .join(".");
+    const seconds = Math.ceil(n.with.freshness.maximumAgeHours * 3600);
+    const column = outputSetting(n.columns, n.with.freshness.column);
+    const query = `SELECT MAX(\`${column}\`) >= current_timestamp() - INTERVAL ${seconds} SECONDS AS fresh FROM ${name}`;
+    cells.push({
+      cell_type: "code",
+      metadata: {},
+      execution_count: null,
+      outputs: [],
+      source: [
+        `# ${n.flow}.${n.table}: latest business timestamp must be within ${seconds} seconds.\nif spark.sql(${JSON.stringify(query)}).first()["fresh"] is not True:\n    raise ValueError(${JSON.stringify("Stale or empty dataset: " + name)})\n`,
+      ],
+    });
+  }
+  return {
+    nbformat: 4,
+    nbformat_minor: 5,
+    metadata: {
+      kernelspec: {
+        display_name: "Python 3",
+        language: "python",
+        name: "python3",
+      },
+      language_info: { name: "python" },
+    },
+    cells,
+  };
 }

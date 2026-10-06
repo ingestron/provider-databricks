@@ -1,3 +1,155 @@
+// src/schedules.mjs
+var check = (ok, message) => {
+  if (!ok) throw Error(message);
+};
+var object = (v) => v && typeof v === "object" && !Array.isArray(v);
+var compare = (a, b) => a < b ? -1 : a > b ? 1 : 0;
+var identifier = (v) => typeof v === "string" && /^[A-Za-z_][A-Za-z0-9_-]{0,100}$/.test(v);
+var utc = (value) => {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(value))
+    return null;
+  const [year, month, day, hour, minute, second] = value.match(/\d+/g).map(Number);
+  const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const months = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  if (month < 1 || month > 12 || day < 1 || day > months[month - 1] || hour > 23 || minute > 59 || second > 59)
+    return null;
+  const days = 365 * year + Math.floor((year + 3) / 4) - Math.floor((year + 99) / 100) + Math.floor((year + 399) / 400) - 719528 + months.slice(0, month - 1).reduce((a, b) => a + b, 0) + day - 1;
+  return {
+    hour,
+    minute,
+    second,
+    milliseconds: ((days * 24 + hour) * 60 * 60 + minute * 60 + second) * 1e3
+  };
+};
+var instant = (value) => utc(value) !== null;
+var weekday = {
+  Monday: "MON",
+  Tuesday: "TUE",
+  Wednesday: "WED",
+  Thursday: "THU",
+  Friday: "FRI",
+  Saturday: "SAT",
+  Sunday: "SUN"
+};
+function nativeCalendar(schedule) {
+  check(
+    object(schedule) && Object.keys(schedule).every(
+      (k) => [
+        "apiVersion",
+        "enabled",
+        "timeZone",
+        "start",
+        "end",
+        "recurrence",
+        "overlap",
+        "missed",
+        "daylightSaving"
+      ].includes(k)
+    ),
+    "Unsupported Databricks schedule fields"
+  );
+  check(
+    schedule.apiVersion === "ingestron.schedule/v1" && typeof schedule.enabled === "boolean" && instant(schedule.start) && (!schedule.end || instant(schedule.end) && utc(schedule.end).milliseconds > utc(schedule.start).milliseconds),
+    "Use a reviewed schedule with exact UTC start/exclusive end"
+  );
+  check(
+    schedule.overlap === "native" && schedule.missed === "native" && !schedule.daylightSaving,
+    "Databricks schedules require explicitly native clock, overlap and missed-run policies"
+  );
+  check(
+    typeof schedule.timeZone === "string" && schedule.timeZone.length >= 1 && schedule.timeZone.length <= 128,
+    "Use the reviewed IANA time zone"
+  );
+  const r = schedule.recurrence;
+  check(object(r), "Choose a schedule recurrence");
+  const result = [];
+  if (r.kind === "interval") {
+    check(
+      Object.keys(r).every((k) => ["kind", "minutes"].includes(k)) && Number.isInteger(r.minutes) && r.minutes >= 1 && r.minutes <= 1440 && 1440 % r.minutes === 0,
+      "Native Databricks elapsed intervals must divide a UTC day exactly; other phases require portable dispatch, never a month-resetting cron approximation"
+    );
+    check(
+      ["UTC", "Etc/UTC", "Etc/GMT", "GMT"].includes(schedule.timeZone),
+      "Native elapsed intervals require UTC to preserve elapsed time across daylight saving"
+    );
+    const start = utc(schedule.start), phase = (start.hour * 60 + start.minute) % r.minutes;
+    const minutes = /* @__PURE__ */ new Map();
+    for (let slot = phase; slot < 1440; slot += r.minutes) {
+      const minute = slot % 60;
+      minutes.set(minute, [
+        ...minutes.get(minute) ?? [],
+        Math.floor(slot / 60)
+      ]);
+    }
+    const groups = /* @__PURE__ */ new Map();
+    for (const [minute, hours] of minutes) {
+      const key = hours.join(",");
+      groups.set(key, [...groups.get(key) ?? [], minute]);
+    }
+    for (const [hours, mins] of groups)
+      result.push({
+        cron: `${start.second} ${mins.sort((a, b) => a - b).join(",")} ${hours} * * ?`,
+        second: start.second
+      });
+  } else {
+    const allowed = r.kind === "daily" ? ["kind", "times"] : r.kind === "weekly" ? ["kind", "times", "weekDays"] : r.kind === "monthly" ? ["kind", "times", "monthDays"] : [];
+    check(
+      allowed.length && Object.keys(r).every((k) => allowed.includes(k)),
+      "Unsupported Databricks recurrence fields"
+    );
+    check(
+      Array.isArray(r.times) && r.times.length >= 1 && r.times.length <= 100 && new Set(r.times).size === r.times.length && r.times.every(
+        (t) => typeof t === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(t)
+      ),
+      "Review one to 100 unique paired calendar slots"
+    );
+    let day = "*", week = "?";
+    if (r.kind === "weekly") {
+      check(
+        Array.isArray(r.weekDays) && r.weekDays.length >= 1 && new Set(r.weekDays).size === r.weekDays.length && r.weekDays.every((d) => weekday[d]),
+        "Review valid unique weekdays"
+      );
+      day = "?";
+      week = r.weekDays.map((d) => weekday[d]).join(",");
+    } else if (r.kind === "monthly") {
+      check(
+        Array.isArray(r.monthDays) && r.monthDays.length >= 1 && new Set(r.monthDays).size === r.monthDays.length && r.monthDays.every((d) => Number.isInteger(d) && d >= 1 && d <= 31),
+        "Review valid unique month days; missing dates are skipped"
+      );
+      day = [...r.monthDays].sort((a, b) => a - b).join(",");
+    }
+    for (const time of [...r.times].sort(compare)) {
+      const [hour, minute] = time.split(":").map(Number);
+      result.push({ cron: `0 ${minute} ${hour} ${day} * ${week}`, second: 0 });
+    }
+  }
+  check(
+    result.length > 0 && result.length <= 100,
+    "Native schedule exceeds 100 calendar groups"
+  );
+  return result;
+}
+function scheduledJobNames(project, environment, flow, schedule) {
+  check(
+    [project, environment, flow].every(identifier),
+    "Use safe native scheduled job identities"
+  );
+  return nativeCalendar(schedule).map((entry, index) => ({
+    ...entry,
+    key: `schedule_${flow}_${index + 1}`,
+    name: `${environment}_${project}_${flow}_schedule_${index + 1}`
+  }));
+}
+
+// src/column-mapping.mjs
+function publishedContract(contract) {
+  const value = JSON.parse(JSON.stringify(contract));
+  for (const object2 of value.schema ?? [])
+    for (const property of object2.properties ?? [])
+      delete property.physicalName;
+  return value;
+}
+
 // node_modules/.pnpm/yaml@2.9.0/node_modules/yaml/browser/dist/nodes/identity.js
 var ALIAS = /* @__PURE__ */ Symbol.for("yaml.alias");
 var DOC = /* @__PURE__ */ Symbol.for("yaml.document");
@@ -6268,8 +6420,25 @@ function stringify3(value, replacer, options) {
   return new Document(value, _replacer, options).toString(options);
 }
 
+// src/transformation-authoring.mjs
+function transformationSettings(value) {
+  if (value === void 0) return void 0;
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some(
+    (key) => !["pipelineId", "targetTable"].includes(key)
+  ) || typeof value.pipelineId !== "string" || !/^[A-Za-z0-9_-]{1,100}$/.test(value.pipelineId) || typeof value.targetTable !== "string" || value.targetTable.length > 500 || !/^[A-Za-z_]\w*\.[A-Za-z_]\w*\.[A-Za-z_]\w*$/.test(
+    value.targetTable.replace(
+      /{{\s*(?:env|project\.id|values\.[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*}}/g,
+      "reviewed"
+    )
+  ))
+    throw Error(
+      "Supply a pipeline alias and catalogue.schema.table for the transformation output"
+    );
+  return value;
+}
+
 // src/output-validation.mjs
-var check = (ok, code, message) => {
+var check2 = (ok, code, message) => {
   if (!ok) throw new Error(message);
 };
 var posix = {
@@ -6288,7 +6457,7 @@ function bundleConfiguration(files, root) {
   const result = parseDocument(files[root]).toJS();
   const prefix = root.includes("/") ? root.slice(0, root.lastIndexOf("/") + 1) : "";
   for (const pattern of result.include ?? []) {
-    check(
+    check2(
       typeof pattern === "string" && /^(resources|targets)\/\*\.yml$/.test(pattern),
       "DAB",
       "Unsupported generated bundle include"
@@ -6297,7 +6466,7 @@ function bundleConfiguration(files, root) {
     const matches = Object.keys(files).filter(
       (p) => p.startsWith(directory) && p.endsWith(".yml") && !p.slice(directory.length).includes("/")
     );
-    check(matches.length > 0, "DAB", `Missing bundle include ${pattern}`);
+    check2(matches.length > 0, "DAB", `Missing bundle include ${pattern}`);
     for (const file of matches) {
       const value = parseDocument(files[file]).toJS();
       for (const [section, entries] of Object.entries(value)) {
@@ -6306,7 +6475,7 @@ function bundleConfiguration(files, root) {
           for (const [kind, resources] of Object.entries(entries)) {
             result.resources[kind] ??= {};
             for (const [id, resource] of Object.entries(resources)) {
-              check(
+              check2(
                 !Object.hasOwn(result.resources[kind], id),
                 "DAB",
                 `Duplicate bundle resource ${id}`
@@ -6316,7 +6485,7 @@ function bundleConfiguration(files, root) {
           }
         else
           for (const [id, entry] of Object.entries(entries)) {
-            check(
+            check2(
               !Object.hasOwn(result[section], id),
               "DAB",
               `Duplicate bundle ${section}.${id}`
@@ -6332,7 +6501,7 @@ function validateReferences(files) {
   const requireFile = (path, owner) => {
     if (path.startsWith("/") || path.startsWith("${")) return;
     const resolved = posix.normalize(posix.join(posix.dirname(owner), path));
-    check(
+    check2(
       Object.hasOwn(files, resolved),
       "REFERENCE",
       `${owner}: missing generated source ${path}`
@@ -6362,7 +6531,7 @@ var ingestionStandards = [
   "change-feed-with-history@v1",
   "append-only@v1"
 ].map((id) => ({ id }));
-var check2 = (ok, ...messages) => {
+var check3 = (ok, ...messages) => {
   if (!ok) throw new Error(messages[messages.length - 1]);
 };
 function author(request) {
@@ -6432,12 +6601,16 @@ Configure existing Databricks resources in environments/*.yaml. Add an ingestion
     throw new Error("Unsupported authoring operation");
   const data = request.project, resolved = request.project, files = {}, file = `flows/${options.id}/flow.yaml`;
   if (options.kind === "ingestion") {
-    check2(
+    check3(
+      options.transformationSettings === void 0 && !options.outputContract,
+      "Output settings apply only to transformations"
+    );
+    check3(
       !options.sourceKind || options.sourceKind === "adls",
       "This standard expects existing ADLS/volume deliveries"
     );
     const standard = options.standard ?? "append-only@v1";
-    check2(
+    check3(
       ingestionStandards.some((s) => s.id === standard),
       "STANDARD",
       "Choose a supported Databricks ingestion standard"
@@ -6484,13 +6657,15 @@ Configure existing Databricks resources in environments/*.yaml. Add an ingestion
       files[env.path] = doc2.toString();
     }
   } else {
-    check2(
+    check3(
       options.inputDataset,
       "DATASET",
       "Supply --input-dataset from dataset list"
     );
     let contract, pipeline;
     for (const flow of resolved.flows) {
+      if ((flow.provider ?? data.defaults.provider) !== request.configuration)
+        continue;
       for (const [tableId, table] of Object.entries(flow.tables ?? {}))
         if (`${data.id}.${flow.id}.${tableId}.current` === options.inputDataset) {
           contract = structuredClone(table.contract);
@@ -6512,13 +6687,17 @@ Configure existing Databricks resources in environments/*.yaml. Add an ingestion
           pipeline = step?.with.pipelineId;
         }
     }
-    check2(
+    check3(
       contract && pipeline,
       "DATASET",
       "Choose a published current or transformation dataset"
     );
-    files[`flows/${options.id}/contracts/result.odcs.yaml`] = stringify3(contract);
-    files[`flows/${options.id}/sql/transform.sql`] = "SELECT * FROM source\n";
+    const settings = transformationSettings(options.transformationSettings);
+    files[`flows/${options.id}/contracts/result.odcs.yaml`] = stringify3(
+      publishedContract(options.outputContract ?? contract)
+    );
+    const python = options.language === "python";
+    files[`flows/${options.id}/${python ? "python/transform.py" : "sql/transform.sql"}`] = python ? 'def transform(inputs):\n    return inputs["source"]\n' : "SELECT * FROM source\n";
     files[file] = stringify3({
       apiVersion: "ingestron.flow/v1",
       kind: "transformation",
@@ -6531,12 +6710,12 @@ Configure existing Databricks resources in environments/*.yaml. Add an ingestion
           id: "transform",
           uses: "materialized-view@v1",
           with: {
-            pipelineId: pipeline,
-            targetTable: {
+            pipelineId: settings?.pipelineId ?? pipeline,
+            targetTable: settings?.targetTable ?? {
               $env: options.id.toUpperCase().replaceAll("-", "_") + "_TARGET_TABLE"
             },
             sources: { source: { from: "requires.source" } },
-            sqlFile: "./sql/transform.sql"
+            ...python ? { pythonFile: "./python/transform.py", entrypoint: "transform" } : { sqlFile: "./sql/transform.sql" }
           }
         }
       ],
@@ -6557,11 +6736,11 @@ function model(request) {
   const node = request.node, settings = node.with, datasets = {};
   if (!request.draft) {
     const binding2 = request.bindings[node.binding];
-    check2(
+    check3(
       binding2?.kind === "databricks" && typeof binding2.host === "string" && /^https:\/\/[^\s/]+\/?$/.test(binding2.host),
       "Supply an HTTPS Databricks workspace host"
     );
-    check2(
+    check3(
       typeof binding2.catalog === "string" && /^[A-Za-z_]\w*$/.test(binding2.catalog),
       "Supply an existing catalogue identifier"
     );
@@ -6571,21 +6750,21 @@ function model(request) {
   const resources = [];
   const claim = (kind, name) => resources.push({ scope, kind, name });
   if (node.uses.endsWith("-input@v1")) {
-    check2(
+    check3(
       typeof node.source?.from === "string" && /^requires\.[\w-]+$/.test(node.source.from) && Object.keys(node.source).length === 1,
       "Imported source must contain only requires.<alias>"
     );
     const input = request.inputs[node.source.from.slice(9)], location = input?.location;
     const publishing = node.uses === "snapshot-publish-input@v1";
-    check2(
+    check3(
       input?.handover === "files" && location?.kind === "files" && location.format === "parquet",
       "Requires an explicit Parquet file handover"
     );
-    check2(
+    check3(
       location.protocol === (publishing ? "ingestron.snapshot-landing/v1" : "ingestron.snapshot-publication/v1") && location.completion === (publishing ? "requires-successful-adf-run" : "requires-publication-receipt"),
       "Incompatible snapshot completion protocol"
     );
-    check2(
+    check3(
       JSON.stringify(input.contract.schema) === JSON.stringify(node.contract.schema) && input.contract.version === node.contract.version,
       "Imported snapshot contract differs from reviewed input contract"
     );
@@ -6602,6 +6781,10 @@ function model(request) {
     if (publishing) settings.dataset = location.dataset;
   }
   if (node.uses.startsWith("snapshot-publish")) {
+    check3(
+      !request.flowContext?.schedule,
+      "Publication scheduling requires its own bounded job preparation"
+    );
     const root = node.runtime.options.publication?.workspaceRoot;
     if (root) claim("workspace-root", root);
     claim("job", `${request.project}_${node.flow}_${node.table}`);
@@ -6625,6 +6808,19 @@ function model(request) {
       targets: [],
       resources
     };
+  }
+  if (request.flowContext?.schedule) {
+    check3(
+      !node.uses.startsWith("snapshot-publish"),
+      "Publication scheduling requires its own bounded job preparation"
+    );
+    for (const job of scheduledJobNames(
+      request.project,
+      request.environment,
+      node.flow,
+      request.flowContext.schedule
+    ))
+      claim("job", job.name);
   }
   const deployment = node.runtime.options.deployment ?? {}, alias = settings.pipeline ?? settings.pipelineId;
   claim(
@@ -6661,24 +6857,26 @@ function model(request) {
       };
     return { with: settings, datasets, targets: [], resources };
   }
-  check2(
+  check3(
     ["lakeflow-ingest@v1", "lakeflow-ingest-input@v1"].includes(node.uses),
     "Unknown model activity"
   );
   const schema4 = settings.target?.schema ?? settings.schema ?? "prepared", tableName = request.tableName;
-  check2(
+  check3(
     /^[A-Za-z_]\w*$/.test(schema4) && /^[A-Za-z_]\w*$/.test(tableName),
     `Invalid target name ${schema4}.${tableName}`
   );
   node.with.schema = schema4;
   node.with.table = tableName;
-  const publishedContract = structuredClone(node.contract);
+  const publishedContract2 = structuredClone(node.contract);
   if (settings.operationColumn)
-    publishedContract.schema[0].properties = publishedContract.schema[0].properties.filter(
+    publishedContract2.schema[0].properties = publishedContract2.schema[0].properties.filter(
       (c) => (c.physicalName ?? c.name) !== settings.operationColumn && !settings.sequenceBy?.includes(c.physicalName ?? c.name)
     );
+  for (const property of publishedContract2.schema[0].properties)
+    delete property.physicalName;
   if (settings.target.historySchema) {
-    const history = structuredClone(publishedContract);
+    const history = structuredClone(publishedContract2);
     const sequence = settings.sequenceBy?.[0];
     const metadata = sequence ? node.contract.schema[0].properties.find(
       (c) => (c.physicalName ?? c.name) === sequence
@@ -6710,7 +6908,7 @@ function model(request) {
   }
   datasets.current = {
     producer: node.id,
-    contract: publishedContract,
+    contract: publishedContract2,
     location: {
       kind: "relation",
       name: `${binding.catalog}.${schema4}.${tableName}`,

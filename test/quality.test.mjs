@@ -6,7 +6,13 @@ import { expand, render } from "../plugin/index.mjs";
 
 const columns = [
   { name: "order_id", type: "BIGINT", required: true, key: true },
-  { name: "status", type: "STRING", required: false, key: false },
+  {
+    name: "status",
+    target: "order_status",
+    type: "STRING",
+    required: false,
+    key: false,
+  },
   { name: "amount", type: "DECIMAL(10,2)", required: false, key: false },
 ];
 const contract = (extra = {}) => ({
@@ -54,6 +60,14 @@ const contract = (extra = {}) => ({
     },
   ],
 });
+const managedContract = () => {
+  const value = contract();
+  for (const p of value.schema[0].properties) {
+    p.name = p.physicalName ?? p.name;
+    delete p.physicalName;
+  }
+  return value;
+};
 const ingestion = (standard) => {
   const snapshot = standard.startsWith("snapshot");
   return {
@@ -109,7 +123,13 @@ const plan = (standard, step) => ({
       binding: "dbx",
       runtime: { implementation: "native", options: {} },
       generation: { kind: "native-notebook" },
-      columns,
+      columns: [
+        "query-ingestion@v1",
+        "sharepoint-ingestion@v1",
+        "saas-ingestion@v1",
+      ].includes(standard)
+        ? columns.map(({ target, ...c }) => c)
+        : columns,
       source: {
         binding: "files",
         format: "parquet",
@@ -147,11 +167,11 @@ test("streaming standards map row-level rules to native expectations", () => {
     .value;
   assert.match(
     sql,
-    /CONSTRAINT q_status_valid EXPECT \(`status` IS NULL OR `status` IN \('open', 'closed'\)\) ON VIOLATION FAIL UPDATE/,
+    /CONSTRAINT q_status_valid EXPECT \(`order_status` IS NULL OR `order_status` IN \('open', 'closed'\)\) ON VIOLATION FAIL UPDATE/,
   );
   assert.match(
     sql,
-    /CONSTRAINT q_status_present EXPECT \(`status` IS NOT NULL\)\)\nAS SELECT/,
+    /CONSTRAINT q_status_present EXPECT \(`order_status` IS NOT NULL\)\)\nAS SELECT/,
   );
   assert.doesNotMatch(sql, /key-unique|DROP ROW/);
 });
@@ -261,7 +281,7 @@ except ValueError as error:
   );
   assert.match(
     failed,
-    /FAILED Contract quality rules failed; snapshot not applied: volume \(2\), status-valid \(1\)/,
+    /FAILED Contract quality rules failed; snapshot not applied: volume, status-valid/,
   );
   assert.doesNotMatch(failed, /secret-value/);
 });
@@ -296,7 +316,7 @@ test("sql rules run on snapshots and databricks predicates become expectations",
   const byId = Object.fromEntries(snapshot.map((q) => [q.id, q]));
   assert.equal(
     byId["status-short"].query,
-    "SELECT MAX(LENGTH(`status`)) FROM ${table}",
+    "SELECT MAX(LENGTH(`order_status`)) FROM ${table}",
   );
   assert.equal(byId["dq-positive"].metric, "predicate");
   assert.equal(byId["soda-check"], undefined);
@@ -398,14 +418,14 @@ except ValueError as error:
   });
   assert.match(
     output,
-    /FAILED Contract quality rules failed; snapshot not applied: no-negative \(2\)/,
+    /FAILED Contract quality rules failed; snapshot not applied: no-negative/,
   );
 });
 
 test("query ingestion generates a Lakeflow Connect pipeline for database tables", () => {
   const step = expand({
     providerSource: "test",
-    columns: { orders: columns },
+    columns: { orders: columns.map(({ target, ...c }) => c) },
     flow: {
       id: "sales",
       kind: "ingestion",
@@ -418,7 +438,7 @@ test("query ingestion generates a Lakeflow Connect pipeline for database tables"
       defaults: { with: {} },
       tables: {
         orders: {
-          contract: contract(),
+          contract: managedContract(),
           steps: {},
           ingestion: { cursor: "amount" },
         },
@@ -469,7 +489,9 @@ test("query ingestion generates a Lakeflow Connect pipeline for database tables"
     () =>
       expand({
         providerSource: "test",
-        columns: { orders: columns.map((c) => ({ ...c, key: false })) },
+        columns: {
+          orders: columns.map(({ target, ...c }) => ({ ...c, key: false })),
+        },
         flow: {
           id: "sales",
           kind: "ingestion",
@@ -479,7 +501,7 @@ test("query ingestion generates a Lakeflow Connect pipeline for database tables"
             target: { schema: "bronze" },
           },
           defaults: { with: {} },
-          tables: { orders: { contract: contract(), steps: {} } },
+          tables: { orders: { contract: managedContract(), steps: {} } },
         },
       }),
     /SCD_TYPE_1 needs primary keys/,
@@ -489,7 +511,7 @@ test("query ingestion generates a Lakeflow Connect pipeline for database tables"
 test("SharePoint files become a managed ingestion object with contract schema hints", () => {
   const step = expand({
     providerSource: "test",
-    columns: { orders: columns },
+    columns: { orders: columns.map(({ target, ...c }) => c) },
     flow: {
       id: "sales",
       kind: "ingestion",
@@ -499,7 +521,7 @@ test("SharePoint files become a managed ingestion object with contract schema hi
         target: { schema: "bronze" },
       },
       defaults: { with: {} },
-      tables: { orders: { contract: contract(), steps: {} } },
+      tables: { orders: { contract: managedContract(), steps: {} } },
     },
   }).steps[0];
   const p = plan("sharepoint-ingestion@v1", step);
@@ -554,7 +576,7 @@ test("SharePoint files become a managed ingestion object with contract schema hi
 test("Salesforce, HubSpot and Jira become managed SaaS ingestion objects", () => {
   const step = expand({
     providerSource: "test",
-    columns: { orders: columns },
+    columns: { orders: columns.map(({ target, ...c }) => c) },
     flow: {
       id: "sales",
       kind: "ingestion",
@@ -564,7 +586,7 @@ test("Salesforce, HubSpot and Jira become managed SaaS ingestion objects", () =>
         target: { schema: "bronze" },
       },
       defaults: { with: {} },
-      tables: { orders: { contract: contract(), steps: {} } },
+      tables: { orders: { contract: managedContract(), steps: {} } },
     },
   }).steps[0];
   assert.equal(step.with.history, "SCD_TYPE_1");

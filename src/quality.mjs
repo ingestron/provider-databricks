@@ -1,3 +1,6 @@
+import { temporalLiteral } from "./temporal-types.mjs";
+import { outputColumns } from "./column-mapping.mjs";
+
 /** ODCS v3.1 library quality rules mapped to native Lakeflow checks (PB-063 phase 4).
  *
  * Rule identities match @ingestron/core: explicit `id`, otherwise
@@ -148,7 +151,12 @@ export function contractRules(contract) {
 const numeric = (type) =>
   /^(BIGINT|INT|INTEGER|SMALLINT|DOUBLE|FLOAT|DECIMAL)/.test(type);
 /** Listed values that cannot take the column type never match a row. */
-function literals(values, type) {
+function literals(values, type, temporal = false) {
+  if (temporal && ["DATE", "TIMESTAMP"].includes(type))
+    return (Array.isArray(values) ? values : []).flatMap((value) => {
+      const literal = temporalLiteral(type, value);
+      return literal === undefined ? [] : [literal];
+    });
   return (Array.isArray(values) ? values : [])
     .filter((v) =>
       v === null
@@ -169,20 +177,21 @@ function literals(values, type) {
 }
 
 /** A row-level predicate that is true for rows passing the rule. */
-function predicate(rule, column) {
+function predicate(rule, column, temporal) {
   const c = "`" + column.name + "`";
   if (rule.metric === "nullValues") return `${c} IS NOT NULL`;
   if (rule.metric === "missingValues") {
     const missing = literals(
       rule.arguments.missingValues ?? [null, ""],
       column.type,
+      temporal,
     );
     return missing.length
       ? `${c} IS NOT NULL AND ${c} NOT IN (${missing.join(", ")})`
       : `${c} IS NOT NULL`;
   }
   if (rule.arguments.validValues !== undefined) {
-    const valid = literals(rule.arguments.validValues, column.type);
+    const valid = literals(rule.arguments.validValues, column.type, temporal);
     return valid.length
       ? `${c} IS NULL OR ${c} IN (${valid.join(", ")})`
       : `${c} IS NULL`;
@@ -206,21 +215,30 @@ const constraint = (id, used) => {
 };
 
 /** Native checks for one table. Throws for explicit rules the standard cannot express. */
-export function qualityChecks(contract, columns, standard) {
+export function qualityChecks(contract, columns, standard, scope = "source") {
+  if (scope === "output") columns = outputColumns(columns);
   const object = contract.schema?.[0] ?? {};
   const physical = new Map(
-    (object.properties ?? []).map((p) => [p.name, p.physicalName ?? p.name]),
+    (object.properties ?? []).map((p) => [
+      p.name,
+      scope === "output" ? p.name : (p.physicalName ?? p.name),
+    ]),
   );
   const byName = new Map(columns.map((c) => [c.name, c]));
   const column = (rule, name) =>
     byName.get(physical.get(name) ?? name) ??
     fail(`${rule.id}: unknown contract column ${name}`);
-  const snapshot = standard === "snapshot-with-history@v1";
+  const managed = [
+    "query-ingestion@v1",
+    "sharepoint-ingestion@v1",
+    "saas-ingestion@v1",
+  ].includes(standard);
+  const snapshot = standard === "snapshot-with-history@v1" || managed;
   const used = new Set();
   const checks = [];
   for (const rule of contractRules(contract)) {
     // Keys are already required and, for snapshots, checked unique.
-    if (rule.source === "primary-key") continue;
+    if (rule.source === "primary-key" && !managed) continue;
     if (rule.metric === "custom") {
       // Databricks engine rules are Spark SQL row predicates; other engines are
       // reported as not enforced.
@@ -289,7 +307,7 @@ export function qualityChecks(contract, columns, standard) {
       ...(target ? { column: target.name } : {}),
       ...(properties.length ? { properties } : {}),
       ...(ROW_LEVEL.has(rule.metric)
-        ? { expression: predicate(rule, target) }
+        ? { expression: predicate(rule, target, !managed) }
         : {}),
       operator: rule.operator,
       threshold: rule.threshold,

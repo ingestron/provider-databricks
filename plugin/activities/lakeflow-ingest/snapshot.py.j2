@@ -76,10 +76,22 @@ def next_{{ function }}_snapshot(latest_version, source_root=SOURCE_ROOT, delive
             raise ValueError("Retain the previous delivery index entry to check maximumDropPercent")
         if previous["rowCount"] and 100 * (previous["rowCount"] - delivery["rowCount"]) / previous["rowCount"] > policy["maximumDropPercent"]:
             raise ValueError("Snapshot row-count drop exceeds maximumDropPercent")
+    temporal_parquet = json.loads({{ temporalParquet }})
+    if temporal_parquet:
+        # Explicit read schemas can erase source timezone annotations. Inspect all
+        # retained file footers together before any forced temporal conversion.
+        observed = spark.read.option("mergeSchema", "true").parquet(delivery["path"]).schema
+        for field in temporal_parquet:
+            if field["name"] not in observed.names or observed[field["name"]].dataType.simpleString() != field["type"]:
+                raise ValueError("Parquet source temporal type, timezone or precision differs from the reviewed contract; no timezone conversion was inferred")
     data = spark.read.format({{ format }}).schema(schema).option("mode", "FAILFAST").load(delivery["path"])
+    temporal_invalid = {{ temporalInvalid }}
+    if temporal_invalid and data.filter(F.expr(temporal_invalid)).limit(1).count():
+        raise ValueError({{ temporalMessage }})
     if data.count() != delivery["rowCount"]:
         raise ValueError("Snapshot row count differs from the completed delivery")
-    # Failing checks must never drop rows: that would turn bad data into deletes.
+{% if projection %}    data = data.select({{ projection }})
+{% endif %}    # Failing checks must never drop rows: that would turn bad data into deletes.
     if data.filter(F.expr({{ invalidPredicate }})).limit(1).count():
         raise ValueError("Snapshot required-column or business expectation failed; no rows were discarded")
     if data.groupBy(*keys).count().filter(F.col("count") > 1).limit(1).count():
@@ -91,47 +103,12 @@ def next_{{ function }}_snapshot(latest_version, source_root=SOURCE_ROOT, delive
 QUALITY = json.loads({{ quality }})
 
 
+{{ qualityEvaluator }}
+
+
 def check_{{ function }}_quality(data, rows, rules=QUALITY):
-    """Contract library rules on the whole snapshot. Counts only; no row values."""
-    results = []
-    for rule in rules:
-        metric = rule["metric"]
-        if metric == "sql":
-            # ${table} is this delivered snapshot, before it is applied.
-            view = "ingestron_quality_{{ function }}"
-            data.createOrReplaceTempView(view)
-            result = spark.sql(rule["query"].replace("${table}", view)).collect()
-            if len(result) != 1 or len(result[0]) != 1 or not isinstance(result[0][0], (int, float, Decimal)) or isinstance(result[0][0], bool):
-                raise ValueError("Contract sql rule must return one numeric value: " + rule["id"])
-            value = float(result[0][0]) if isinstance(result[0][0], Decimal) else result[0][0]
-        elif metric == "rowCount":
-            value = rows
-        elif metric == "duplicateValues":
-            columns = [rule["column"]] if "column" in rule else rule["properties"]
-            subset = data.select(*columns)
-            if "column" in rule:
-                subset = subset.where(F.col(rule["column"]).isNotNull())
-            value = subset.count() - subset.distinct().count()
-        else:
-            value = data.where(~F.coalesce(F.expr(rule["expression"]), F.lit(False))).count()
-        if rule["unit"] == "percent" and metric != "rowCount":
-            value = round(100 * value / rows, 4) if rows else 0
-        low_high = rule["threshold"] if isinstance(rule["threshold"], list) else [None, None]
-        passed = {
-            "mustBe": lambda: value == rule["threshold"],
-            "mustNotBe": lambda: value != rule["threshold"],
-            "mustBeGreaterThan": lambda: value > rule["threshold"],
-            "mustBeGreaterOrEqualTo": lambda: value >= rule["threshold"],
-            "mustBeLessThan": lambda: value < rule["threshold"],
-            "mustBeLessOrEqualTo": lambda: value <= rule["threshold"],
-            "mustBeBetween": lambda: low_high[0] <= value <= low_high[1],
-            "mustNotBeBetween": lambda: not (low_high[0] <= value <= low_high[1]),
-        }[rule["operator"]]()
-        results.append({"id": rule["id"], "outcome": rule["outcome"], "value": value, "passed": passed})
-    print(json.dumps({"ingestronQuality": results}))
-    failed = [r for r in results if r["outcome"] == "fail" and not r["passed"]]
-    if failed:
-        raise ValueError("Contract quality rules failed; snapshot not applied: " + ", ".join(f"{r['id']} ({r['value']})" for r in failed[:10]))
+    """Evaluate the entire delivered snapshot before native CDC sees it."""
+    return check_quality(data, rows, rules, {"identity": "{{ function }}"}, enforcement="before-load")
 
 
 dp.create_streaming_table(name={{ history }})

@@ -2,15 +2,18 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { resolve } from "node:path";
 import { readFileSync, writeFileSync, copyFileSync } from "node:fs";
-import { fixture, installWorking, providerRoot } from "../support/project.js";
 import {
+  fixture,
+  installWorking,
+  providerRoot,
+  providerReference,
   initialise,
   apply,
   addFlow,
   addTable,
-} from "../../../cli/src/core/authoring.js";
-import { planProject } from "../../../cli/src/core/planner.js";
-import { renderProject } from "../../../cli/src/core/generate.js";
+  planProject,
+  renderProject,
+} from "../support/project.ts";
 import { parse, stringify } from "yaml";
 test("semantic ingestion authoring needs no cluster or per-run staging configuration", (t) => {
   const f = fixture(t),
@@ -20,7 +23,7 @@ test("semantic ingestion authoring needs no cluster or per-run staging configura
     root,
     initialise(root, {
       id: "demo",
-      provider: "databricks@2.2.0",
+      provider: providerReference,
       environments: ["dev"],
     }),
   );

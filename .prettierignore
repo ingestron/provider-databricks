@@ -12,3 +12,7 @@ src/schemas/
 
 plugin/connector-assets.mjs
 src/vendor/connectors/
+
+plugin/quality-assets.mjs
+
+plugin/sql-parser.mjs

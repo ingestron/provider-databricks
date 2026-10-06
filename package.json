@@ -1,6 +1,6 @@
 {
   "name": "@ingestron/provider-databricks",
-  "version": "3.7.0",
+  "version": "3.13.0",
   "private": true,
   "type": "module",
   "license": "Apache-2.0",
@@ -19,11 +19,14 @@
     "acceptance": "node scripts/acceptance.mjs"
   },
   "devDependencies": {
+    "@lezer/python": "1.1.19",
+    "antlr4ng": "2.0.11",
+    "dt-sql-parser": "4.5.1",
     "esbuild": "0.28.2",
-    "zod": "4.5.4",
     "nunjucks": "3.2.4",
     "prettier": "3.9.6",
-    "yaml": "2.9.0"
+    "yaml": "2.9.0",
+    "zod": "4.5.4"
   },
   "repository": {
     "type": "git",

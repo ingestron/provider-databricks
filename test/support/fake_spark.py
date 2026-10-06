@@ -73,7 +73,7 @@ class Session:
     def sql(self, query):
         self.queries.append(query)
         value = self.results[query]
-        return types.SimpleNamespace(collect=lambda: [(value,)])
+        return types.SimpleNamespace(take=lambda n: [(value,)][:n])
 
 
 def run(source, function, rows, failing, row_count, sql_results=None):
