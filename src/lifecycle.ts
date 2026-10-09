@@ -1,3 +1,4 @@
+import { bindPlatform } from "./platform-binding.mjs";
 import { scheduledJobNames } from "./schedules.mjs";
 import { publishedContract as outputContract } from "./column-mapping.mjs";
 const structuredClone = (value: any) => JSON.parse(JSON.stringify(value));
@@ -17,6 +18,8 @@ const check = (ok: any, ...messages: any[]) => {
 };
 export function author(request: any) {
   const { options } = request;
+  if (request.operation === "platform_binding")
+    return { files: { "binding.yaml": stringify(bindPlatform(options)) } };
   if (request.operation === "initialise") {
     const environments = options.environments;
     const files: Record<string, string> = {

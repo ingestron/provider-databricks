@@ -173,6 +173,9 @@ const manifest = parse(readFileSync("plugin/provider.yaml", "utf8"));
 const { transformationSettingsSchema } =
   await import("../src/transformation-authoring.mjs");
 manifest.authoring = { transformationSettingsSchema };
+const { platformBinding } = await import("../src/platform-binding.mjs");
+manifest.platformBinding = platformBinding;
+manifest.compatibility.requiredFeatures.push("programme-platform-binding");
 manifest.compatibility.requiredFeatures.push(
   "transformation-authoring-settings",
 );

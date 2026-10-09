@@ -107,3 +107,17 @@ Private candidate complete snapshots use [bounded native quality checks](docs/na
 Private candidate file temporal fields use [exact calendar and timezone-less timestamp checks](docs/native-temporal-types.md), including source Parquet footer inspection. Streamed Parquet temporal qualification remains open.
 
 Private candidate materialised views support [reviewed Python batch transformations](docs/python-transformations.md) with typed output and after-load quality checks.
+
+## Reviewed shared-platform binding
+
+The local 3.14.0 candidate declares the `programme-platform-binding` host feature.
+Its offline `platform_binding` authoring operation translates a reviewed shared
+Databricks profile plus explicit `workspaceUrl` and `catalog` resource references
+into project provider options and environment bindings. Shared resources remain
+externally owned. Bundle state uses a separate project/environment workspace path.
+
+The current adapter supports `databricks-cli` authentication, non-production
+profiles and no secret references. Other authentication methods, production
+profiles, unknown resource fields and URL credentials are refused. It does not
+create a workspace or catalogue, resolve credentials, or apply flow standards and
+naming preferences. Those remain explicit pending intent in the binding review.

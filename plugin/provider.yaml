@@ -1,6 +1,6 @@
 apiVersion: ingestron.provider/v1
 id: databricks-native
-version: 3.13.0
+version: 3.14.0
 platform: databricks
 renderer:
   apiVersion: ingestron.provider-generation/v1
@@ -38,6 +38,7 @@ compatibility:
     - published-transformation-quality
     - transformation-authoring-settings
     - typed-transformation-outputs
+    - programme-platform-binding
 sources:
   azure-blob:
     route: native
@@ -977,3 +978,20 @@ authoring:
         maxLength: 500
         title: Output table
         description: catalogue.schema.table, for example {{env}}_retail.silver.orders.
+platformBinding:
+  apiVersion: ingestron.platform-binding-authoring/v1
+  resourcesSchema:
+    type: object
+    additionalProperties: false
+    required:
+      - workspaceUrl
+      - catalog
+    properties:
+      workspaceUrl:
+        type: string
+        pattern: ^https://[A-Za-z0-9.-]+/?$
+        title: Existing workspace URL
+      catalog:
+        type: string
+        pattern: ^[A-Za-z_][A-Za-z0-9_]*$
+        title: Existing Unity Catalog catalogue
