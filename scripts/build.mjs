@@ -172,7 +172,9 @@ const { connectorRuntimes, connectionDefinition } =
 const manifest = parse(readFileSync("plugin/provider.yaml", "utf8"));
 const { transformationSettingsSchema } =
   await import("../src/transformation-authoring.mjs");
-manifest.authoring = { transformationSettingsSchema };
+const { flowAuthoring } = await import("../src/flow-authoring.mjs");
+manifest.authoring = { transformationSettingsSchema, flows: flowAuthoring };
+manifest.compatibility.requiredFeatures.push("flow-authoring-capabilities");
 const { platformBinding } = await import("../src/platform-binding.mjs");
 manifest.platformBinding = platformBinding;
 manifest.compatibility.requiredFeatures.push("programme-platform-binding");

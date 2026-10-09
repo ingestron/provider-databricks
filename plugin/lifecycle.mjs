@@ -6478,6 +6478,22 @@ function transformationSettings(value) {
   return value;
 }
 
+// src/flow-authoring.mjs
+var flowAuthoring = {
+  apiVersion: "ingestron.flow-authoring/v1",
+  kinds: ["ingestion", "transformation"],
+  ingestionStandards: [
+    "snapshot-with-history@v1",
+    "change-feed-with-history@v1",
+    "append-only@v1"
+  ],
+  prerequisites: [
+    "Ingestion needs existing ADLS or volume deliveries and a configured source binding.",
+    "Transformation needs a published dataset on the same provider and a pipeline.",
+    "Review output contracts, target resources and environment bindings before generation."
+  ]
+};
+
 // src/output-validation.mjs
 var check2 = (ok, code, message) => {
   if (!ok) throw new Error(message);
@@ -6567,11 +6583,6 @@ function validateReferences(files) {
 
 // src/lifecycle.ts
 var structuredClone = (value) => JSON.parse(JSON.stringify(value));
-var ingestionStandards = [
-  "snapshot-with-history@v1",
-  "change-feed-with-history@v1",
-  "append-only@v1"
-].map((id) => ({ id }));
 var check3 = (ok, ...messages) => {
   if (!ok) throw new Error(messages[messages.length - 1]);
 };
@@ -6654,7 +6665,7 @@ Configure existing Databricks resources in environments/*.yaml. Add an ingestion
     );
     const standard = options.standard ?? "append-only@v1";
     check3(
-      ingestionStandards.some((s) => s.id === standard),
+      flowAuthoring.ingestionStandards.includes(standard),
       "STANDARD",
       "Choose a supported Databricks ingestion standard"
     );
@@ -6736,9 +6747,25 @@ Configure existing Databricks resources in environments/*.yaml. Add an ingestion
       "Choose a published current or transformation dataset"
     );
     const settings = transformationSettings(options.transformationSettings);
-    files[`flows/${options.id}/contracts/result.odcs.yaml`] = stringify3(
-      publishedContract(options.outputContract ?? contract)
+    const authoredContract = publishedContract(options.outputContract ?? contract);
+    if (!options.outputContract) {
+      authoredContract.id = `${data.id}.${options.id}.result`;
+      authoredContract.name = options.id;
+      authoredContract.version = "1.0.0";
+      authoredContract.status = "draft";
+      delete authoredContract.team;
+      delete authoredContract.description;
+    }
+    check3(
+      !resolved.flows.some(
+        (flow) => [
+          ...Object.values(flow.tables ?? {}),
+          ...Object.values(flow.publishes ?? {})
+        ].some((o) => o.contract?.id === authoredContract.id)
+      ),
+      "Choose a distinct output contract identity"
     );
+    files[`flows/${options.id}/contracts/result.odcs.yaml`] = stringify3(authoredContract);
     const python = options.language === "python";
     files[`flows/${options.id}/${python ? "python/transform.py" : "sql/transform.sql"}`] = python ? 'def transform(inputs):\n    return inputs["source"]\n' : "SELECT * FROM source\n";
     files[file] = stringify3({

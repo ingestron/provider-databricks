@@ -1,6 +1,6 @@
 apiVersion: ingestron.provider/v1
 id: databricks-native
-version: 3.14.0
+version: 3.15.0
 platform: databricks
 renderer:
   apiVersion: ingestron.provider-generation/v1
@@ -39,6 +39,7 @@ compatibility:
     - transformation-authoring-settings
     - typed-transformation-outputs
     - programme-platform-binding
+    - flow-authoring-capabilities
 sources:
   azure-blob:
     route: native
@@ -978,6 +979,22 @@ authoring:
         maxLength: 500
         title: Output table
         description: catalogue.schema.table, for example {{env}}_retail.silver.orders.
+  flows:
+    apiVersion: ingestron.flow-authoring/v1
+    kinds:
+      - ingestion
+      - transformation
+    ingestionStandards:
+      - snapshot-with-history@v1
+      - change-feed-with-history@v1
+      - append-only@v1
+    prerequisites:
+      - Ingestion needs existing ADLS or volume deliveries and a configured
+        source binding.
+      - Transformation needs a published dataset on the same provider and a
+        pipeline.
+      - Review output contracts, target resources and environment bindings
+        before generation.
 platformBinding:
   apiVersion: ingestron.platform-binding-authoring/v1
   resourcesSchema:

@@ -4,11 +4,7 @@ import { publishedContract as outputContract } from "./column-mapping.mjs";
 const structuredClone = (value: any) => JSON.parse(JSON.stringify(value));
 import { stringify, parseDocument } from "yaml";
 import { transformationSettings } from "./transformation-authoring.mjs";
-const ingestionStandards = [
-  "snapshot-with-history@v1",
-  "change-feed-with-history@v1",
-  "append-only@v1",
-].map((id) => ({ id }));
+import { flowAuthoring } from "./flow-authoring.mjs";
 import {
   bundleConfiguration,
   validateReferences,
@@ -96,7 +92,7 @@ export function author(request: any) {
     );
     const standard = options.standard ?? "append-only@v1";
     check(
-      ingestionStandards.some((s) => s.id === standard),
+      flowAuthoring.ingestionStandards.includes(standard),
       "STANDARD",
       "Choose a supported Databricks ingestion standard",
     );
@@ -201,9 +197,26 @@ export function author(request: any) {
       "Choose a published current or transformation dataset",
     );
     const settings = transformationSettings(options.transformationSettings);
-    files[`flows/${options.id}/contracts/result.odcs.yaml`] = stringify(
-      outputContract(options.outputContract ?? contract),
+    const authoredContract = outputContract(options.outputContract ?? contract);
+    if (!options.outputContract) {
+      authoredContract.id = `${data.id}.${options.id}.result`;
+      authoredContract.name = options.id;
+      authoredContract.version = "1.0.0";
+      authoredContract.status = "draft";
+      delete authoredContract.team;
+      delete authoredContract.description;
+    }
+    check(
+      !resolved.flows.some((flow: any) =>
+        [
+          ...Object.values<any>(flow.tables ?? {}),
+          ...Object.values<any>(flow.publishes ?? {}),
+        ].some((o: any) => o.contract?.id === authoredContract.id),
+      ),
+      "Choose a distinct output contract identity",
     );
+    files[`flows/${options.id}/contracts/result.odcs.yaml`] =
+      stringify(authoredContract);
     const python = options.language === "python";
     files[
       `flows/${options.id}/${python ? "python/transform.py" : "sql/transform.sql"}`
