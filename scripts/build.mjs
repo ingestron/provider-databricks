@@ -174,7 +174,10 @@ const { transformationSettingsSchema } =
   await import("../src/transformation-authoring.mjs");
 const { flowAuthoring } = await import("../src/flow-authoring.mjs");
 manifest.authoring = { transformationSettingsSchema, flows: flowAuthoring };
-manifest.compatibility.requiredFeatures.push("flow-authoring-capabilities");
+manifest.compatibility.requiredFeatures.push(
+  "flow-authoring-capabilities",
+  "flow-input-inspection",
+);
 const { platformBinding } = await import("../src/platform-binding.mjs");
 manifest.platformBinding = platformBinding;
 manifest.compatibility.requiredFeatures.push("programme-platform-binding");

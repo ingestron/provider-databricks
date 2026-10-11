@@ -1,6 +1,7 @@
 /** Creation capabilities, distinct from the broader renderer catalogue. */
 export const flowAuthoring = {
   apiVersion: "ingestron.flow-authoring/v1",
+  transformationInputs: "provider/v1",
   kinds: ["ingestion", "transformation"],
   ingestionStandards: [
     "snapshot-with-history@v1",

@@ -6481,6 +6481,7 @@ function transformationSettings(value) {
 // src/flow-authoring.mjs
 var flowAuthoring = {
   apiVersion: "ingestron.flow-authoring/v1",
+  transformationInputs: "provider/v1",
   kinds: ["ingestion", "transformation"],
   ingestionStandards: [
     "snapshot-with-history@v1",
@@ -6586,8 +6587,52 @@ var structuredClone = (value) => JSON.parse(JSON.stringify(value));
 var check3 = (ok, ...messages) => {
   if (!ok) throw new Error(messages[messages.length - 1]);
 };
+function transformationInputs(project, configuration) {
+  const inputs = [];
+  for (const flow of project.flows ?? []) {
+    if ((flow.provider ?? project.defaults?.provider) !== configuration)
+      continue;
+    for (const [name, table] of Object.entries(flow.tables ?? {})) {
+      if (table.contract && flow.ingestion?.pipeline)
+        inputs.push({
+          dataset: `${project.id}.${flow.id}.${name}.current`,
+          contract: table.contract,
+          pipeline: flow.ingestion.pipeline,
+          metadata: [
+            table.ingestion?.operationColumn,
+            ...table.ingestion?.sequenceBy ?? []
+          ].filter(Boolean)
+        });
+    }
+    for (const [name, output] of Object.entries(flow.publishes ?? {})) {
+      const step = flow.steps?.find(
+        (s) => output.from === `steps.${s.id}.outputs.result` || output.from === `steps.${s.id}.outputs.table`
+      );
+      if (output.contract && step?.with?.pipelineId)
+        inputs.push({
+          dataset: `${project.id}.${flow.id}.${name}`,
+          contract: output.contract,
+          pipeline: step.with.pipelineId,
+          metadata: []
+        });
+    }
+  }
+  return inputs;
+}
 function author(request) {
   const { options } = request;
+  if (request.operation === "flow_inputs")
+    return {
+      files: {
+        "inputs.json": JSON.stringify({
+          apiVersion: "ingestron.flow-inputs/v1",
+          datasets: transformationInputs(
+            request.project,
+            request.configuration
+          ).map((input) => input.dataset)
+        })
+      }
+    };
   if (request.operation === "platform_binding")
     return { files: { "binding.yaml": stringify3(bindPlatform(options)) } };
   if (request.operation === "initialise") {
@@ -6716,35 +6761,17 @@ Configure existing Databricks resources in environments/*.yaml. Add an ingestion
       "DATASET",
       "Supply --input-dataset from dataset list"
     );
-    let contract, pipeline;
-    for (const flow of resolved.flows) {
-      if ((flow.provider ?? data.defaults.provider) !== request.configuration)
-        continue;
-      for (const [tableId, table] of Object.entries(flow.tables ?? {}))
-        if (`${data.id}.${flow.id}.${tableId}.current` === options.inputDataset) {
-          contract = structuredClone(table.contract);
-          pipeline = flow.ingestion?.pipeline;
-          const metadata = [
-            table.ingestion?.operationColumn,
-            ...table.ingestion?.sequenceBy ?? []
-          ];
-          contract.schema[0].properties = contract.schema[0].properties.filter(
-            (c) => !metadata.includes(c.physicalName ?? c.name)
-          );
-        }
-      for (const [name, output] of Object.entries(flow.publishes ?? {}))
-        if (`${data.id}.${flow.id}.${name}` === options.inputDataset) {
-          contract = output.contract;
-          const step = flow.steps?.find(
-            (s) => output.from === `steps.${s.id}.outputs.result` || output.from === `steps.${s.id}.outputs.table`
-          );
-          pipeline = step?.with.pipelineId;
-        }
-    }
+    const input = transformationInputs(resolved, request.configuration).find(
+      (input2) => input2.dataset === options.inputDataset
+    );
     check3(
-      contract && pipeline,
+      input,
       "DATASET",
-      "Choose a published current or transformation dataset"
+      "Choose a published current or transformation dataset on this configuration with a pipeline"
+    );
+    const contract = structuredClone(input.contract), pipeline = input.pipeline;
+    contract.schema[0].properties = contract.schema[0].properties.filter(
+      (c) => !input.metadata.includes(c.physicalName ?? c.name)
     );
     const settings = transformationSettings(options.transformationSettings);
     const authoredContract = publishedContract(options.outputContract ?? contract);

@@ -81,3 +81,86 @@ test("new transformations have independent draft identities and do not inherit o
   assert.equal(contract.id, "upstream");
   assert.equal(contract.status, "active");
 });
+
+test("input inspection and creation agree on configuration and pipeline boundaries", () => {
+  const contract = {
+    id: "input",
+    schema: [
+      {
+        properties: [
+          { name: "id", logicalType: "integer", physicalType: "BIGINT" },
+        ],
+      },
+    ],
+  };
+  const project = {
+    id: "retail",
+    defaults: { provider: "dbx" },
+    flows: [
+      {
+        id: "landing",
+        provider: "adf",
+        ingestion: { pipeline: "not-a-dbx-pipeline" },
+        tables: { orders: { contract } },
+      },
+      { id: "unbound", tables: { orders: { contract } } },
+      {
+        id: "source",
+        ingestion: { pipeline: "bronze" },
+        tables: { orders: { contract } },
+      },
+      {
+        id: "silver",
+        steps: [{ id: "view", with: { pipelineId: "silver" } }],
+        publishes: { result: { from: "steps.view.outputs.result", contract } },
+      },
+      {
+        id: "broken",
+        publishes: {
+          result: { from: "steps.missing.outputs.result", contract },
+        },
+      },
+    ],
+  };
+  const before = JSON.stringify(project);
+  const request = { configuration: "dbx", project };
+  const inspected = JSON.parse(
+    author({ ...request, operation: "flow_inputs" }).files["inputs.json"],
+  );
+  assert.deepEqual(inspected, {
+    apiVersion: "ingestron.flow-inputs/v1",
+    datasets: ["retail.source.orders.current", "retail.silver.result"],
+  });
+  for (const inputDataset of [
+    ...inspected.datasets,
+    "retail.landing.orders.current",
+    "retail.unbound.orders.current",
+    "retail.broken.result",
+  ]) {
+    const create = () =>
+      author({
+        ...request,
+        operation: "flow",
+        options: {
+          id: "result",
+          kind: "transformation",
+          inputDataset,
+          transformationSettings: {
+            pipelineId: "gold",
+            targetTable: "retail.gold.result",
+          },
+        },
+      });
+    if (inspected.datasets.includes(inputDataset))
+      assert.ok(create().files["flows/result/flow.yaml"]);
+    else assert.throws(create, /configuration with a pipeline/);
+  }
+  assert.deepEqual(
+    JSON.parse(
+      author({ ...request, configuration: "other", operation: "flow_inputs" })
+        .files["inputs.json"],
+    ).datasets,
+    [],
+  );
+  assert.equal(JSON.stringify(project), before);
+});

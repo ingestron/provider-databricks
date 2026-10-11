@@ -121,3 +121,12 @@ profiles and no secret references. Other authentication methods, production
 profiles, unknown resource fields and URL credentials are refused. It does not
 create a workspace or catalogue, resolve credentials, or apply flow standards and
 naming preferences. Those remain explicit pending intent in the binding review.
+
+### Transformation input inspection (local candidate)
+
+The flow authoring lifecycle now declares `flow-input-inspection`. Its read-only
+`flow_inputs` operation lists only outputs on the selected configuration with a
+pipeline. Creation uses the same selection function. ADF landing files and outputs
+without a pipeline are not directly selectable as Databricks transformation inputs.
+They need an explicit publication/ingestion boundary first. The returned definitions
+do not attest that a dataset has executed or exists in a workspace.

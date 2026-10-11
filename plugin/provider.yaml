@@ -40,6 +40,7 @@ compatibility:
     - typed-transformation-outputs
     - programme-platform-binding
     - flow-authoring-capabilities
+    - flow-input-inspection
 sources:
   azure-blob:
     route: native
@@ -981,6 +982,7 @@ authoring:
         description: catalogue.schema.table, for example {{env}}_retail.silver.orders.
   flows:
     apiVersion: ingestron.flow-authoring/v1
+    transformationInputs: provider/v1
     kinds:
       - ingestion
       - transformation
