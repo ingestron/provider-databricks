@@ -5,5 +5,5 @@ CREATE OR REFRESH STREAMING TABLE {{ current }} (
   CONSTRAINT {{ rule.name }} EXPECT ({{ rule.expression }}){% if not rule.warn %} ON VIOLATION FAIL UPDATE{% endif %}{% endfor %}
 )
 AS SELECT {{ columns }}, _rescued_data
-FROM STREAM read_files({{ path }}, format => {{ format }}, schema => {{ ddl }},
+FROM STREAM read_files({{ path }}, format => {{ format }}, schema => {{ ddl }}{{ readerOptions }},
   schemaEvolutionMode => 'rescue', rescuedDataColumn => '_rescued_data');

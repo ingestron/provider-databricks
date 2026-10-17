@@ -1,3 +1,4 @@
+import { authorFileHandoff } from "./file-handoff.mjs";
 import { bindPlatform } from "./platform-binding.mjs";
 import { scheduledJobNames } from "./schedules.mjs";
 import { publishedContract as outputContract } from "./column-mapping.mjs";
@@ -53,6 +54,12 @@ function transformationInputs(project: any, configuration: string) {
   return inputs;
 }
 export function author(request: any) {
+  if (request.operation === "file_handoff")
+    return {
+      files: {
+        "handoff.json": JSON.stringify(authorFileHandoff(request.options)),
+      },
+    };
   const { options } = request;
   if (request.operation === "flow_inputs")
     return {
@@ -318,19 +325,26 @@ export function model(request: any) {
     const input = request.inputs[node.source.from.slice(9)],
       location = input?.location;
     const publishing = node.uses === "snapshot-publish-input@v1";
+    const immutable =
+      settings.standard === "append-only@v1" &&
+      location?.protocol === "ingestron.immutable-file-landing/v1";
     check(
       input?.handover === "files" &&
         location?.kind === "files" &&
-        location.format === "parquet",
+        (immutable
+          ? ["json", "csv"].includes(location.format)
+          : location.format === "parquet"),
       "Requires an explicit Parquet file handover",
     );
     check(
       location.protocol ===
-        (publishing
-          ? "ingestron.snapshot-landing/v1"
-          : "ingestron.snapshot-publication/v1") &&
+        (immutable
+          ? "ingestron.immutable-file-landing/v1"
+          : publishing
+            ? "ingestron.snapshot-landing/v1"
+            : "ingestron.snapshot-publication/v1") &&
         location.completion ===
-          (publishing
+          (publishing || immutable
             ? "requires-successful-adf-run"
             : "requires-publication-receipt"),
       "Incompatible snapshot completion protocol",
@@ -344,8 +358,9 @@ export function model(request: any) {
     node.source = {
       binding: location.binding,
       path: location.name,
-      format: "parquet",
-      ...(!publishing
+      format: location.format,
+      ...(immutable ? { reader: location.reader } : {}),
+      ...(!publishing && !immutable
         ? {
             deliveryIndex: location.deliveryIndex,
             // The published index names the upstream dataset; check that name.

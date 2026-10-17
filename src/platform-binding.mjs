@@ -1,6 +1,10 @@
 /** Translate reviewed resource references; no discovery, authentication or resource creation. */
 export const platformBinding = {
   apiVersion: "ingestron.platform-binding-authoring/v1",
+  designResources: {
+    workspaceUrl: "https://design.example.invalid",
+    catalog: "design_catalog",
+  },
   resourcesSchema: {
     type: "object",
     additionalProperties: false,

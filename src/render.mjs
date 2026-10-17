@@ -196,14 +196,37 @@ export function validateIngestionPlan(plan) {
         "source.path must be an ADLS, S3, GCS or Volume directory without a trailing slash",
       );
       check(
-        ["json", "parquet"].includes(s.format),
-        "Ingestion standards currently accept JSON or Parquet; CSV requires an explicit reader policy",
+        ["json", "parquet", "csv"].includes(s.format),
+        "Choose JSON, Parquet or CSV with explicit reader settings",
       );
       check(
         Object.keys(s).every((k) =>
-          ["binding", "path", "format", "deliveryIndex", "dataset"].includes(k),
+          [
+            "binding",
+            "path",
+            "format",
+            "reader",
+            "deliveryIndex",
+            "dataset",
+          ].includes(k),
         ),
         "Unsupported source setting; ingestion standards do not silently ignore source options",
+      );
+      check(
+        s.reader === undefined ||
+          (s.format === "csv"
+            ? s.reader.header === true &&
+              s.reader.delimiter === "," &&
+              Object.keys(s.reader).length === 2
+            : s.format === "json" &&
+              typeof s.reader.multiLine === "boolean" &&
+              Object.keys(s.reader).length === 1),
+        "Unsupported explicit file reader policy",
+      );
+      check(
+        s.format !== "csv" ||
+          (n.with.standard === "append-only@v1" && s.reader?.header === true),
+        "CSV requires append-only with a header and comma delimiter",
       );
       if (n.with.standard === "snapshot-with-history@v1")
         check(
@@ -513,6 +536,12 @@ export function renderIngestion(plan) {
         path: sqlString(s.path),
         format: sqlString(s.format),
         ddl: sqlString(ddl),
+        readerOptions:
+          s.format === "csv"
+            ? ", header => true, sep => ','"
+            : s.reader?.multiLine === true
+              ? ", multiLine => true"
+              : "",
       };
       if (isEvents)
         Object.assign(values, {

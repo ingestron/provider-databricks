@@ -999,6 +999,9 @@ authoring:
         before generation.
 platformBinding:
   apiVersion: ingestron.platform-binding-authoring/v1
+  designResources:
+    workspaceUrl: https://design.example.invalid
+    catalog: design_catalog
   resourcesSchema:
     type: object
     additionalProperties: false
@@ -1014,3 +1017,6 @@ platformBinding:
         type: string
         pattern: ^[A-Za-z_][A-Za-z0-9_]*$
         title: Existing Unity Catalog catalogue
+fileHandoff:
+  apiVersion: ingestron.file-handoff/v1
+  role: consumer

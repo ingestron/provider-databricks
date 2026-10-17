@@ -1,3 +1,39 @@
+// src/file-handoff.mjs
+function authorFileHandoff(o) {
+  if (!o.tables?.length) throw Error("Select reviewed files");
+  const requires = {}, tables = {};
+  for (const t of o.tables) {
+    requires[t.id] = {
+      dataset: `${o.project}.${o.producerFlow}.${t.id}.snapshot`,
+      select: { mode: "same-run" },
+      handover: "files"
+    };
+    tables[t.id] = {
+      source: { from: `requires.${t.id}` },
+      contract: t.contract
+    };
+  }
+  return {
+    flow: {
+      apiVersion: "ingestron.flow/v1",
+      id: o.id,
+      kind: "ingestion",
+      provider: o.provider,
+      description: `Design delivery of ${o.origin}; append immutable files only after the ADF batch succeeds. Deployment preparation must isolate completed batches from incomplete copies.`,
+      requires,
+      ingestion: {
+        standard: "append-only@v1",
+        pipeline: o.id,
+        target: { schema: "current" },
+        source: { delivery: "immutable-files", deletes: "not-applicable" },
+        retention: { sourceDeliveries: "not-retained" }
+      },
+      tables
+    },
+    bindings: {}
+  };
+}
+
 // src/platform-binding.mjs
 function bindPlatform(options) {
   const { profile, resources, projectId, environment } = options;
@@ -6620,6 +6656,12 @@ function transformationInputs(project, configuration) {
   return inputs;
 }
 function author(request) {
+  if (request.operation === "file_handoff")
+    return {
+      files: {
+        "handoff.json": JSON.stringify(authorFileHandoff(request.options))
+      }
+    };
   const { options } = request;
   if (request.operation === "flow_inputs")
     return {
@@ -6853,12 +6895,13 @@ function model(request) {
     );
     const input = request.inputs[node.source.from.slice(9)], location = input?.location;
     const publishing = node.uses === "snapshot-publish-input@v1";
+    const immutable = settings.standard === "append-only@v1" && location?.protocol === "ingestron.immutable-file-landing/v1";
     check3(
-      input?.handover === "files" && location?.kind === "files" && location.format === "parquet",
+      input?.handover === "files" && location?.kind === "files" && (immutable ? ["json", "csv"].includes(location.format) : location.format === "parquet"),
       "Requires an explicit Parquet file handover"
     );
     check3(
-      location.protocol === (publishing ? "ingestron.snapshot-landing/v1" : "ingestron.snapshot-publication/v1") && location.completion === (publishing ? "requires-successful-adf-run" : "requires-publication-receipt"),
+      location.protocol === (immutable ? "ingestron.immutable-file-landing/v1" : publishing ? "ingestron.snapshot-landing/v1" : "ingestron.snapshot-publication/v1") && location.completion === (publishing || immutable ? "requires-successful-adf-run" : "requires-publication-receipt"),
       "Incompatible snapshot completion protocol"
     );
     check3(
@@ -6868,8 +6911,9 @@ function model(request) {
     node.source = {
       binding: location.binding,
       path: location.name,
-      format: "parquet",
-      ...!publishing ? {
+      format: location.format,
+      ...immutable ? { reader: location.reader } : {},
+      ...!publishing && !immutable ? {
         deliveryIndex: location.deliveryIndex,
         // The published index names the upstream dataset; check that name.
         ...typeof location.dataset === "string" ? { dataset: location.dataset } : {}
