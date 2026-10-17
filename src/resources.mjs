@@ -50,7 +50,9 @@ export function deploymentSettings(plan) {
     );
   }
   check(
-    !Object.keys(plan.selection ?? {}).length,
+    Object.entries(plan.selection ?? {}).every(
+      ([key, value]) => key === "projectBuild" && value === true,
+    ),
     "Deploy complete flows; a partial selection cannot replace pipeline resources safely",
   );
   return settings;
