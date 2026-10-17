@@ -14,3 +14,9 @@ licence above:
   built plugin (for example Nunjucks and its dependencies).
 - src/vendor/connectors: helpers copied from https://github.com/ingestron/connectors
   (Apache-2.0). Provenance: src/vendor/connectors/provenance.json.
+
+- Spark SQL parser: dt-sql-parser 4.5.1 (MIT), adapted Spark 3.5.0 grammar
+  (Apache-2.0), and antlr4ng 2.0.11 (BSD-3-Clause). The bundled runtime uses a
+  fixed string hash seed for deterministic sandbox execution. Full terms are in
+  plugin/THIRD-PARTY-NOTICES.txt; modification receipt: plugin/sql-parser-provenance.json.
+  Grammar source: https://github.com/DTStack/dt-sql-parser/tree/main/src/grammar/spark.

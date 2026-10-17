@@ -1,0 +1,9 @@
+{
+  "grammar": "dt-sql-parser@4.5.1 Spark SQL (adapted from Apache Spark 3.5.0)",
+  "runtime": "antlr4ng@2.0.11",
+  "originalRuntimeSha256": "3f26522822a19b97d8fc6e18eee25541bb97360a500b3d5c53451dbb32af61dd",
+  "modification": {
+    "original": "var stringSeedHashCode = Math.round(Math.random() * Math.pow(2, 32));",
+    "replacement": "var stringSeedHashCode = 0;"
+  }
+}

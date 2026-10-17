@@ -1,31 +1,51 @@
-import { cpSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { execFileSync } from "node:child_process";
-import { installPackage } from "../../../cli/src/core/packages.js";
+import { pathToFileURL } from "node:url";
+import assert from "node:assert/strict";
+import { readFileSync, realpathSync } from "node:fs";
+const cliRoot = realpathSync(process.env.INGESTRON_ACCEPTANCE_CLI_PACKAGE!);
+const cliManifest = JSON.parse(
+  readFileSync(resolve(cliRoot, "package.json"), "utf8"),
+);
+assert.equal(cliManifest.name, "ingestron");
+const coreRoot = realpathSync(resolve(cliRoot, "../@ingestron/core"));
+const coreManifestPath = resolve(coreRoot, "package.json");
+const coreManifest = JSON.parse(readFileSync(coreManifestPath, "utf8"));
+assert.equal(coreManifest.name, "@ingestron/core");
+assert.ok(
+  [
+    "0.17.8/0.12.14",
+    "0.17.9/0.12.15",
+    "0.17.19/0.12.45",
+    "0.17.20/0.12.46",
+    "0.17.20/0.12.47",
+  ].includes(cliManifest.version + "/" + coreManifest.version),
+);
+export const { execute } = await import(
+  pathToFileURL(resolve(coreRoot, "dist/sdk/index.js")).href
+);
+const adapter = await import(
+  pathToFileURL(resolve(coreRoot, "dist/sdk/adapter.js")).href
+);
+export const {
+  installPackage,
+  planProject,
+  renderProject,
+  initialise,
+  apply,
+  addFlow,
+  addTable,
+} = adapter;
+export const providerReference =
+  process.env.INGESTRON_ACCEPTANCE_PROVIDER_REFERENCE!;
 export const providerRoot = fileURLToPath(new URL("../../", import.meta.url));
 export function installWorking(root: string, t: any) {
   mkdirSync(root, { recursive: true });
-  const origin = mkdtempSync(resolve(tmpdir(), "ingestron-working-provider-"));
-  t.after(() => rmSync(origin, { recursive: true, force: true }));
-  cpSync(resolve(providerRoot, "plugin"), resolve(origin, "plugin"), {
-    recursive: true,
-    filter: (p) => !p.includes("__pycache__"),
-  });
-  const git = (...args: string[]) =>
-    execFileSync("git", args, { cwd: origin, stdio: "pipe" });
-  git("init", "--quiet");
-  git("add", ".");
-  git(
-    "-c",
-    "user.name=Fixture",
-    "-c",
-    "user.email=fixture@example.invalid",
-    "commit",
-    "-qm",
-    "fixture",
+  const origin = process.env.INGESTRON_ACCEPTANCE_PROVIDER;
+  assert.ok(
+    origin,
+    "Use the immutable offline provider snapshot from scripts/acceptance.mjs",
   );
-  git("tag", "2.2.0");
-  installPackage(root, "databricks@2.2.0", { fromGit: origin });
+  installPackage(root, providerReference, { fromGit: origin });
 }
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -102,8 +122,8 @@ export function fixture(t: any) {
   const project: any = {
     apiVersion: "ingestron.project/v1",
     id: "retail",
+    packages: { dbx: providerReference },
     providers: {
-      packages: { dbx: { source: "databricks", version: "2.2.0" } },
       configurations: { engineering: { package: "dbx", binding: "lakehouse" } },
     },
     defaults: { provider: "engineering" },

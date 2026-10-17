@@ -1,5 +1,6 @@
 import { snapshotPolicySchema } from "./snapshot-policy.js";
 import { qualityChecks } from "./quality.mjs";
+import { outputColumns } from "./column-mapping.mjs";
 import { z } from "zod";
 const check = (ok: unknown, _code: string, message: string): asserts ok => {
   if (!ok) throw new Error(message);
@@ -159,6 +160,7 @@ export function expandIngestion(
   const steps: Step[] = [];
   for (const [table, value] of Object.entries<any>(flow.tables ?? {})) {
     const columns = columnsByTable[table];
+    outputColumns(columns);
     const options = tableIngestionSchema.parse(value.ingestion);
     check(
       !Object.keys(value.steps).length,
@@ -255,7 +257,12 @@ export function expandIngestion(
         `${table}: freshness requires a published DATE or TIMESTAMP column`,
       );
     }
-    const quality = qualityChecks(value.contract, columns, config.standard);
+    const quality = qualityChecks(
+      value.contract,
+      columns,
+      config.standard,
+      "output",
+    );
     steps.push({
       id: `ingest_${table}`,
       uses: "lakeflow-ingest@v1",

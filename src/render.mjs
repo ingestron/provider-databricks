@@ -1,3 +1,5 @@
+import { fileTemporal } from "./temporal-types.mjs";
+import { evaluator } from "../plugin/quality-assets.mjs";
 import { deploymentSettings, renderResources } from "./resources.mjs";
 import { templateRenderer } from "./templates/engine.mjs";
 import {
@@ -15,6 +17,12 @@ import {
   saasStandard,
   validateSaasNode,
 } from "./saas-ingestion.mjs";
+import { outputName, outputSetting, outputColumns } from "./column-mapping.mjs";
+import {
+  pythonTransformation,
+  transformationContract,
+} from "./transformation.mjs";
+import { sqlTransformation } from "./sql-transformation.mjs";
 const managedStandards = [queryStandard, sharePointStandard, saasStandard];
 const check = (ok, message) => {
   if (!ok) throw new Error(message);
@@ -149,6 +157,14 @@ export function validateIngestionPlan(plan) {
       "Generated pipeline definition names collide; rename the flow/table",
     );
     internalNames.add(internal);
+    if (kind(n) === "lakeflow-ingest") {
+      outputColumns(n.columns);
+      check(
+        !managedStandards.includes(n.with.standard) ||
+          n.columns.every((c) => outputName(c) === c.name),
+        "Managed ingestion preserves physical source column names; use a separate materialized-view transformation for column renames",
+      );
+    }
     const name = target(plan, n);
     relation(name);
     check(!outputs.has(name), `Duplicate dataset target ${name}`);
@@ -180,14 +196,37 @@ export function validateIngestionPlan(plan) {
         "source.path must be an ADLS, S3, GCS or Volume directory without a trailing slash",
       );
       check(
-        ["json", "parquet"].includes(s.format),
-        "Ingestion standards currently accept JSON or Parquet; CSV requires an explicit reader policy",
+        ["json", "parquet", "csv"].includes(s.format),
+        "Choose JSON, Parquet or CSV with explicit reader settings",
       );
       check(
         Object.keys(s).every((k) =>
-          ["binding", "path", "format", "deliveryIndex", "dataset"].includes(k),
+          [
+            "binding",
+            "path",
+            "format",
+            "reader",
+            "deliveryIndex",
+            "dataset",
+          ].includes(k),
         ),
         "Unsupported source setting; ingestion standards do not silently ignore source options",
+      );
+      check(
+        s.reader === undefined ||
+          (s.format === "csv"
+            ? s.reader.header === true &&
+              s.reader.delimiter === "," &&
+              Object.keys(s.reader).length === 2
+            : s.format === "json" &&
+              typeof s.reader.multiLine === "boolean" &&
+              Object.keys(s.reader).length === 1),
+        "Unsupported explicit file reader policy",
+      );
+      check(
+        s.format !== "csv" ||
+          (n.with.standard === "append-only@v1" && s.reader?.header === true),
+        "CSV requires append-only with a header and comma delimiter",
       );
       if (n.with.standard === "snapshot-with-history@v1")
         check(
@@ -215,6 +254,30 @@ export function validateIngestionPlan(plan) {
         outputs.add(h);
       }
     } else {
+      check(
+        !n.with.pythonFile || !n.with.sqlFile,
+        "Choose exactly one SQL or Python source file for a materialised view",
+      );
+      if (n.with.pythonFile || n.with.sqlFile) {
+        transformationContract(plan, n);
+        check(
+          n.columns?.length,
+          "Transformations require typed output columns",
+        );
+        if (plan.sourceFilesChecked && n.with.sqlFile)
+          sqlTransformation(plan, n);
+      }
+      if (n.with.pythonFile) {
+        check(
+          n.with.pythonFile.endsWith(".py"),
+          "Python transformation source must be a .py file",
+        );
+        transformationContract(plan, n);
+        check(
+          n.columns?.length,
+          "Python transformations require typed output columns",
+        );
+      }
       for (const [alias, source] of Object.entries(n.with.sources ?? {})) {
         ident(alias);
         check(
@@ -282,12 +345,26 @@ export function renderIngestion(plan) {
     pipelines.set(pid, group);
     const stem = `pipelines/${n.flow}/${n.table ?? n.step}`;
     if (kind(n) === "materialized-view") {
+      if (n.with.pythonFile) {
+        const sources = Object.fromEntries(
+          Object.entries(n.with.sources).map(([alias, ref]) => {
+            const input = inputNode(plan, n, ref.from);
+            return [alias, target(plan, input, input.historyInput)];
+          }),
+        );
+        const output = pythonTransformation(plan, n, sources, target(plan, n));
+        put(stem + ".py", "text", output.text);
+        group.sources.push(stem + ".py");
+        group.quality = [...(group.quality ?? []), output.qualityNode];
+        continue;
+      }
       // Query-scoped CTEs keep alias names local; no extra published staging tables.
       const sources = Object.entries(n.with.sources ?? {}).map(
         ([alias, ref]) =>
           `${ident(alias)} AS (SELECT * FROM ${relation(target(plan, inputNode(plan, n, ref.from), inputNode(plan, n, ref.from).historyInput))})`,
       );
-      const query = n.sql.trim().replace(/;\s*$/, "");
+      const output = sqlTransformation(plan, n);
+      const query = output.query;
       const renderView = templateRenderer(
         Object.fromEntries(
           n.implementation.templates.map((t) => [t.output, t.content]),
@@ -295,11 +372,13 @@ export function renderIngestion(plan) {
       );
       const text = renderView("view.sql", {
         target: relation(target(plan, n)),
+        columns: output.columns,
         sources: sources.join(",\n"),
         query,
       });
       put(stem + ".sql", "text", text);
       group.sources.push(stem + ".sql");
+      group.quality = [...(group.quality ?? []), output.qualityNode];
       continue;
     }
     if (managedStandards.includes(n.with.standard)) {
@@ -327,6 +406,7 @@ export function renderIngestion(plan) {
             ? saasObject(n.source, n.columns, n.with.history, destination)
             : sharePointObject(n.source, n.columns, destination),
       ];
+      group.quality = [...(group.quality ?? []), n];
       if (n.with.standard === sharePointStandard) group.channel = "PREVIEW";
       continue;
     }
@@ -338,15 +418,19 @@ export function renderIngestion(plan) {
     const render = templateRenderer(templates);
     const isEvents = w.standard === "change-feed-with-history@v1";
     const isSnapshot = w.standard === "snapshot-with-history@v1";
+    const mapped = (name) => outputSetting(n.columns, name);
+    const keys = w.keys.map(mapped),
+      sequence = (w.sequenceBy ?? []).map(mapped);
+    const operation = w.operationColumn ? mapped(w.operationColumn) : undefined;
     const required = new Set([
-      ...n.columns.filter((c) => c.required).map((c) => c.name),
-      ...w.keys,
-      ...(w.sequenceBy ?? []),
+      ...n.columns.filter((c) => c.required).map(outputName),
+      ...keys,
+      ...sequence,
     ]);
     const rules = [...required].map((column, i) => {
       let expression = `${ident(column)} IS NOT NULL`;
-      if (isEvents && ![...w.keys, ...w.sequenceBy].includes(column))
-        expression = `${ident(w.operationColumn)} = 'D' OR (${expression})`;
+      if (isEvents && ![...keys, ...sequence].includes(column))
+        expression = `${ident(operation)} = 'D' OR (${expression})`;
       return {
         name: `required_${i}`,
         expression,
@@ -372,8 +456,8 @@ export function renderIngestion(plan) {
     if (!isSnapshot)
       for (const q of quality) {
         let expression = q.expression;
-        if (isEvents && ![...w.keys, ...w.sequenceBy].includes(q.column))
-          expression = `${ident(w.operationColumn)} = 'D' OR (${expression})`;
+        if (isEvents && ![...keys, ...sequence].includes(q.column))
+          expression = `${ident(operation)} = 'D' OR (${expression})`;
         rules.push({
           name: q.name,
           expression,
@@ -383,9 +467,11 @@ export function renderIngestion(plan) {
       }
     const current = target(plan, n),
       history = w.target.historySchema ? target(plan, n, true) : "";
-    const ddl = n.columns.map((c) => `${ident(c.name)} ${c.type}`).join(", ");
+    const temporal = fileTemporal(n.columns, s.format, w.standard);
+    const ddl = temporal.schema;
     if (isSnapshot) {
       const source = render("snapshot.py", {
+        qualityEvaluator: evaluator,
         policy: py(JSON.stringify(w.snapshotPolicy ?? {})),
         contractVersion: py(w.contractVersion),
         invalidPredicate: py(
@@ -397,7 +483,11 @@ export function renderIngestion(plan) {
         root: py(s.path),
         index: py(s.deliveryIndex),
         schema: py(ddl),
-        keys: py(w.keys),
+        keys: py(keys),
+        projection: temporal.projection,
+        temporalInvalid: py(temporal.invalid),
+        temporalParquet: py(JSON.stringify(temporal.parquet)),
+        temporalMessage: py(temporal.message),
         function: n.id.replace(/[^A-Za-z0-9_]/g, "_"),
         dataset: py(s.dataset ?? `${plan.project}.${n.flow}.${n.table}`),
         format: py(s.format),
@@ -405,8 +495,8 @@ export function renderIngestion(plan) {
         quality: py(JSON.stringify(quality)),
         history: py(history),
         current: py(current),
-        tracked: w.trackedColumns ? py(w.trackedColumns) : "",
-        select: n.columns.map((c) => py(c.name)).join(", "),
+        tracked: w.trackedColumns ? py(w.trackedColumns.map(mapped)) : "",
+        select: n.columns.map((c) => py(outputName(c))).join(", "),
       });
       const notebook = {
         nbformat: 4,
@@ -442,31 +532,37 @@ export function renderIngestion(plan) {
       const values = {
         current: relation(current),
         rules,
-        columns: n.columns.map((c) => ident(c.name)).join(", "),
+        columns: temporal.columns,
         path: sqlString(s.path),
         format: sqlString(s.format),
         ddl: sqlString(ddl),
+        readerOptions:
+          s.format === "csv"
+            ? ", header => true, sep => ','"
+            : s.reader?.multiLine === true
+              ? ", multiLine => true"
+              : "",
       };
       if (isEvents)
         Object.assign(values, {
           history: relation(history),
           staging: ident(`__${n.id.replace(/[^A-Za-z0-9_]/g, "_")}_events`),
-          operation: ident(w.operationColumn),
+          operation: ident(operation),
           flow_name: ident(`apply_${n.id.replace(/[^A-Za-z0-9_]/g, "_")}`),
-          keys: w.keys.map(ident).join(", "),
-          sequence_columns: w.sequenceBy.map(ident).join(", "),
+          keys: keys.map(ident).join(", "),
+          sequence_columns: sequence.map(ident).join(", "),
           sequence:
-            w.sequenceBy.length === 1
-              ? ident(w.sequenceBy[0])
-              : `STRUCT(${w.sequenceBy.map(ident).join(", ")})`,
+            sequence.length === 1
+              ? ident(sequence[0])
+              : `STRUCT(${sequence.map(ident).join(", ")})`,
           business_columns: n.columns
             .filter(
               (c) =>
                 c.name !== w.operationColumn && !w.sequenceBy.includes(c.name),
             )
-            .map((c) => ident(c.name))
+            .map((c) => ident(outputName(c)))
             .join(", "),
-          tracked: (w.trackedColumns ?? []).map(ident).join(", "),
+          tracked: (w.trackedColumns ?? []).map(mapped).map(ident).join(", "),
         });
       put(
         stem + ".sql",

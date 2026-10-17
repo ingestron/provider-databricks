@@ -33,12 +33,31 @@ optionsSchema:
         additionalProperties: false
     outputContract:
       type: object
+    pythonFile:
+      type: string
+      pattern: \.py$
+    entrypoint:
+      type: string
+      pattern: ^[A-Za-z_][A-Za-z0-9_]*$
   required:
-    - sqlFile
     - pipelineId
     - targetTable
     - sources
   additionalProperties: false
+  oneOf:
+    - required:
+        - sqlFile
+      not:
+        anyOf:
+          - required:
+              - pythonFile
+          - required:
+              - entrypoint
+    - required:
+        - pythonFile
+      not:
+        required:
+          - sqlFile
 generator:
   kind: native-notebook
   entrypoint: generate

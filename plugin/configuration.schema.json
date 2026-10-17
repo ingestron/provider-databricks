@@ -7,7 +7,16 @@
       "type": "object",
       "properties": {
         "mode": {
-          "enum": ["development", "production"]
+          "enum": ["development", "production"],
+          "x-ingestron-ui": {
+            "section": "schedule",
+            "label": "Deployment mode",
+            "enumLabels": {
+              "development": "Development",
+              "production": "Production"
+            }
+          },
+          "description": "Mode for the complete shared target configuration. Selective scheduled refresh currently requires Development. Changing this setting affects every flow using this configuration."
         },
         "rootPath": {
           "type": "string",
@@ -17,46 +26,27 @@
         "runAs": {
           "type": "object",
           "properties": {
-            "user_name": {
-              "type": "string",
-              "minLength": 1
-            },
-            "service_principal_name": {
-              "type": "string",
-              "minLength": 1
-            }
+            "user_name": { "type": "string", "minLength": 1 },
+            "service_principal_name": { "type": "string", "minLength": 1 }
           },
           "required": [],
           "additionalProperties": false,
           "oneOf": [
-            {
-              "required": ["user_name"]
-            },
-            {
-              "required": ["service_principal_name"]
-            }
+            { "required": ["user_name"] },
+            { "required": ["service_principal_name"] }
           ]
         },
         "job": {
           "type": "object",
           "properties": {
-            "name": {
-              "type": "string",
-              "minLength": 1
-            },
+            "name": { "type": "string", "minLength": 1 },
             "permissions": {
               "type": "array",
               "items": {
                 "type": "object",
                 "properties": {
-                  "user_name": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "group_name": {
-                    "type": "string",
-                    "minLength": 1
-                  },
+                  "user_name": { "type": "string", "minLength": 1 },
+                  "group_name": { "type": "string", "minLength": 1 },
                   "service_principal_name": {
                     "type": "string",
                     "minLength": 1
@@ -68,15 +58,9 @@
                 "required": ["level"],
                 "additionalProperties": false,
                 "oneOf": [
-                  {
-                    "required": ["user_name"]
-                  },
-                  {
-                    "required": ["group_name"]
-                  },
-                  {
-                    "required": ["service_principal_name"]
-                  }
+                  { "required": ["user_name"] },
+                  { "required": ["group_name"] },
+                  { "required": ["service_principal_name"] }
                 ]
               },
               "minItems": 1,
@@ -125,30 +109,15 @@
                   "minItems": 1,
                   "uniqueItems": true
                 },
-                "no_alert_for_skipped_runs": {
-                  "type": "boolean"
-                }
+                "no_alert_for_skipped_runs": { "type": "boolean" }
               },
               "required": [],
               "additionalProperties": false
             },
-            "timeoutSeconds": {
-              "type": "integer",
-              "minimum": 1
-            },
-            "durationWarningSeconds": {
-              "type": "integer",
-              "minimum": 1
-            },
-            "maxRetries": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 10
-            },
-            "retryIntervalSeconds": {
-              "type": "integer",
-              "minimum": 0
-            },
+            "timeoutSeconds": { "type": "integer", "minimum": 1 },
+            "durationWarningSeconds": { "type": "integer", "minimum": 1 },
+            "maxRetries": { "type": "integer", "minimum": 0, "maximum": 10 },
+            "retryIntervalSeconds": { "type": "integer", "minimum": 0 },
             "schedule": {
               "type": "object",
               "properties": {
@@ -157,13 +126,8 @@
                   "minLength": 1,
                   "pattern": "^\\S+( +\\S+){5,6}$"
                 },
-                "timezone_id": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "pause_status": {
-                  "enum": ["PAUSED", "UNPAUSED"]
-                }
+                "timezone_id": { "type": "string", "minLength": 1 },
+                "pause_status": { "enum": ["PAUSED", "UNPAUSED"] }
               },
               "required": [
                 "quartz_cron_expression",
@@ -171,6 +135,16 @@
                 "pause_status"
               ],
               "additionalProperties": false
+            },
+            "selectiveRefresh": {
+              "type": "string",
+              "enum": ["native-beta"],
+              "x-ingestron-ui": {
+                "section": "schedule",
+                "label": "Shared pipeline refresh",
+                "enumLabels": { "native-beta": "Selected tables · native beta" }
+              },
+              "description": "Explicitly reviewed Jobs pipeline-task selective refresh (native beta). Required when a scheduled dependency closure uses only part of a shared pipeline. Validate workspace availability and native exclusions before activation."
             }
           },
           "required": [],
@@ -178,24 +152,17 @@
         },
         "pipelines": {
           "type": "object",
-          "propertyNames": {
-            "pattern": "^[A-Za-z_][A-Za-z0-9_-]*$"
-          },
+          "propertyNames": { "pattern": "^[A-Za-z_][A-Za-z0-9_-]*$" },
           "additionalProperties": {
             "type": "object",
             "properties": {
-              "ownership": {
-                "enum": ["managed", "adopt", "external"]
-              },
+              "ownership": { "enum": ["managed", "adopt", "external"] },
               "existingId": {
                 "type": "string",
                 "minLength": 1,
                 "pattern": "^[A-Za-z0-9_-]+$"
               },
-              "name": {
-                "type": "string",
-                "minLength": 1
-              },
+              "name": { "type": "string", "minLength": 1 },
               "schema": {
                 "type": "string",
                 "minLength": 1,
@@ -204,24 +171,14 @@
               "runAs": {
                 "type": "object",
                 "properties": {
-                  "user_name": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "service_principal_name": {
-                    "type": "string",
-                    "minLength": 1
-                  }
+                  "user_name": { "type": "string", "minLength": 1 },
+                  "service_principal_name": { "type": "string", "minLength": 1 }
                 },
                 "required": [],
                 "additionalProperties": false,
                 "oneOf": [
-                  {
-                    "required": ["user_name"]
-                  },
-                  {
-                    "required": ["service_principal_name"]
-                  }
+                  { "required": ["user_name"] },
+                  { "required": ["service_principal_name"] }
                 ]
               },
               "permissions": {
@@ -229,34 +186,20 @@
                 "items": {
                   "type": "object",
                   "properties": {
-                    "user_name": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "group_name": {
-                      "type": "string",
-                      "minLength": 1
-                    },
+                    "user_name": { "type": "string", "minLength": 1 },
+                    "group_name": { "type": "string", "minLength": 1 },
                     "service_principal_name": {
                       "type": "string",
                       "minLength": 1
                     },
-                    "level": {
-                      "enum": ["CAN_VIEW", "CAN_RUN", "CAN_MANAGE"]
-                    }
+                    "level": { "enum": ["CAN_VIEW", "CAN_RUN", "CAN_MANAGE"] }
                   },
                   "required": ["level"],
                   "additionalProperties": false,
                   "oneOf": [
-                    {
-                      "required": ["user_name"]
-                    },
-                    {
-                      "required": ["group_name"]
-                    },
-                    {
-                      "required": ["service_principal_name"]
-                    }
+                    { "required": ["user_name"] },
+                    { "required": ["group_name"] },
+                    { "required": ["service_principal_name"] }
                   ]
                 },
                 "minItems": 1,
@@ -327,9 +270,7 @@
         "ci": {
           "type": "object",
           "properties": {
-            "provider": {
-              "const": "github"
-            },
+            "provider": { "const": "github" },
             "cliVersion": {
               "type": "string",
               "minLength": 1,
@@ -346,21 +287,10 @@
     "publication": {
       "type": "object",
       "properties": {
-        "workspaceRoot": {
-          "type": "string"
-        },
-        "existingClusterId": {
-          "type": "string"
-        },
-        "runAsServicePrincipal": {
-          "type": "string"
-        },
-        "permissions": {
-          "type": "array",
-          "items": {
-            "type": "object"
-          }
-        }
+        "workspaceRoot": { "type": "string" },
+        "existingClusterId": { "type": "string" },
+        "runAsServicePrincipal": { "type": "string" },
+        "permissions": { "type": "array", "items": { "type": "object" } }
       },
       "required": [
         "workspaceRoot",

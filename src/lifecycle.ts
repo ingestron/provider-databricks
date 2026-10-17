@@ -1,10 +1,11 @@
+import { authorFileHandoff } from "./file-handoff.mjs";
+import { bindPlatform } from "./platform-binding.mjs";
+import { scheduledJobNames } from "./schedules.mjs";
+import { publishedContract as outputContract } from "./column-mapping.mjs";
 const structuredClone = (value: any) => JSON.parse(JSON.stringify(value));
 import { stringify, parseDocument } from "yaml";
-const ingestionStandards = [
-  "snapshot-with-history@v1",
-  "change-feed-with-history@v1",
-  "append-only@v1",
-].map((id) => ({ id }));
+import { transformationSettings } from "./transformation-authoring.mjs";
+import { flowAuthoring } from "./flow-authoring.mjs";
 import {
   bundleConfiguration,
   validateReferences,
@@ -12,8 +13,68 @@ import {
 const check = (ok: any, ...messages: any[]) => {
   if (!ok) throw new Error(messages[messages.length - 1]);
 };
+/** Used by both discovery and creation so the picker cannot promise a different input. */
+function transformationInputs(project: any, configuration: string) {
+  const inputs: {
+    dataset: string;
+    contract: any;
+    pipeline: any;
+    metadata: string[];
+  }[] = [];
+  for (const flow of project.flows ?? []) {
+    if ((flow.provider ?? project.defaults?.provider) !== configuration)
+      continue;
+    for (const [name, table] of Object.entries<any>(flow.tables ?? {})) {
+      if (table.contract && flow.ingestion?.pipeline)
+        inputs.push({
+          dataset: `${project.id}.${flow.id}.${name}.current`,
+          contract: table.contract,
+          pipeline: flow.ingestion.pipeline,
+          metadata: [
+            table.ingestion?.operationColumn,
+            ...(table.ingestion?.sequenceBy ?? []),
+          ].filter(Boolean),
+        });
+    }
+    for (const [name, output] of Object.entries<any>(flow.publishes ?? {})) {
+      const step = flow.steps?.find(
+        (s: any) =>
+          output.from === `steps.${s.id}.outputs.result` ||
+          output.from === `steps.${s.id}.outputs.table`,
+      );
+      if (output.contract && step?.with?.pipelineId)
+        inputs.push({
+          dataset: `${project.id}.${flow.id}.${name}`,
+          contract: output.contract,
+          pipeline: step.with.pipelineId,
+          metadata: [],
+        });
+    }
+  }
+  return inputs;
+}
 export function author(request: any) {
+  if (request.operation === "file_handoff")
+    return {
+      files: {
+        "handoff.json": JSON.stringify(authorFileHandoff(request.options)),
+      },
+    };
   const { options } = request;
+  if (request.operation === "flow_inputs")
+    return {
+      files: {
+        "inputs.json": JSON.stringify({
+          apiVersion: "ingestron.flow-inputs/v1",
+          datasets: transformationInputs(
+            request.project,
+            request.configuration,
+          ).map((input) => input.dataset),
+        }),
+      },
+    };
+  if (request.operation === "platform_binding")
+    return { files: { "binding.yaml": stringify(bindPlatform(options)) } };
   if (request.operation === "initialise") {
     const environments = options.environments;
     const files: Record<string, string> = {
@@ -81,12 +142,16 @@ export function author(request: any) {
     file = `flows/${options.id}/flow.yaml`;
   if (options.kind === "ingestion") {
     check(
+      options.transformationSettings === undefined && !options.outputContract,
+      "Output settings apply only to transformations",
+    );
+    check(
       !options.sourceKind || options.sourceKind === "adls",
       "This standard expects existing ADLS/volume deliveries",
     );
     const standard = options.standard ?? "append-only@v1";
     check(
-      ingestionStandards.some((s) => s.id === standard),
+      flowAuthoring.ingestionStandards.includes(standard),
       "STANDARD",
       "Choose a supported Databricks ingestion standard",
     );
@@ -150,47 +215,46 @@ export function author(request: any) {
       "DATASET",
       "Supply --input-dataset from dataset list",
     );
-    let contract: any, pipeline: any;
-    for (const flow of resolved.flows) {
-      for (const [tableId, table] of Object.entries(flow.tables ?? {}) as [
-        string,
-        any,
-      ][])
-        if (
-          `${data.id}.${flow.id}.${tableId}.current` === options.inputDataset
-        ) {
-          contract = structuredClone(table.contract);
-          pipeline = flow.ingestion?.pipeline;
-          const metadata = [
-            table.ingestion?.operationColumn,
-            ...(table.ingestion?.sequenceBy ?? []),
-          ];
-          contract.schema[0].properties = contract.schema[0].properties.filter(
-            (c: any) => !metadata.includes(c.physicalName ?? c.name),
-          );
-        }
-      for (const [name, output] of Object.entries(flow.publishes ?? {}) as [
-        string,
-        any,
-      ][])
-        if (`${data.id}.${flow.id}.${name}` === options.inputDataset) {
-          contract = output.contract;
-          const step = flow.steps?.find(
-            (s: any) =>
-              output.from === `steps.${s.id}.outputs.result` ||
-              output.from === `steps.${s.id}.outputs.table`,
-          );
-          pipeline = step?.with.pipelineId;
-        }
+    const input = transformationInputs(resolved, request.configuration).find(
+      (input) => input.dataset === options.inputDataset,
+    );
+    check(
+      input,
+      "DATASET",
+      "Choose a published current or transformation dataset on this configuration with a pipeline",
+    );
+    const contract = structuredClone(input!.contract),
+      pipeline = input!.pipeline;
+    contract.schema[0].properties = contract.schema[0].properties.filter(
+      (c: any) => !input!.metadata.includes(c.physicalName ?? c.name),
+    );
+    const settings = transformationSettings(options.transformationSettings);
+    const authoredContract = outputContract(options.outputContract ?? contract);
+    if (!options.outputContract) {
+      authoredContract.id = `${data.id}.${options.id}.result`;
+      authoredContract.name = options.id;
+      authoredContract.version = "1.0.0";
+      authoredContract.status = "draft";
+      delete authoredContract.team;
+      delete authoredContract.description;
     }
     check(
-      contract && pipeline,
-      "DATASET",
-      "Choose a published current or transformation dataset",
+      !resolved.flows.some((flow: any) =>
+        [
+          ...Object.values<any>(flow.tables ?? {}),
+          ...Object.values<any>(flow.publishes ?? {}),
+        ].some((o: any) => o.contract?.id === authoredContract.id),
+      ),
+      "Choose a distinct output contract identity",
     );
     files[`flows/${options.id}/contracts/result.odcs.yaml`] =
-      stringify(contract);
-    files[`flows/${options.id}/sql/transform.sql`] = "SELECT * FROM source\n";
+      stringify(authoredContract);
+    const python = options.language === "python";
+    files[
+      `flows/${options.id}/${python ? "python/transform.py" : "sql/transform.sql"}`
+    ] = python
+      ? 'def transform(inputs):\n    return inputs["source"]\n'
+      : "SELECT * FROM source\n";
     files[file] = stringify({
       apiVersion: "ingestron.flow/v1",
       kind: "transformation",
@@ -203,13 +267,15 @@ export function author(request: any) {
           id: "transform",
           uses: "materialized-view@v1",
           with: {
-            pipelineId: pipeline,
-            targetTable: {
+            pipelineId: settings?.pipelineId ?? pipeline,
+            targetTable: settings?.targetTable ?? {
               $env:
                 options.id.toUpperCase().replaceAll("-", "_") + "_TARGET_TABLE",
             },
             sources: { source: { from: "requires.source" } },
-            sqlFile: "./sql/transform.sql",
+            ...(python
+              ? { pythonFile: "./python/transform.py", entrypoint: "transform" }
+              : { sqlFile: "./sql/transform.sql" }),
           },
         },
       ],
@@ -259,19 +325,26 @@ export function model(request: any) {
     const input = request.inputs[node.source.from.slice(9)],
       location = input?.location;
     const publishing = node.uses === "snapshot-publish-input@v1";
+    const immutable =
+      settings.standard === "append-only@v1" &&
+      location?.protocol === "ingestron.immutable-file-landing/v1";
     check(
       input?.handover === "files" &&
         location?.kind === "files" &&
-        location.format === "parquet",
+        (immutable
+          ? ["json", "csv"].includes(location.format)
+          : location.format === "parquet"),
       "Requires an explicit Parquet file handover",
     );
     check(
       location.protocol ===
-        (publishing
-          ? "ingestron.snapshot-landing/v1"
-          : "ingestron.snapshot-publication/v1") &&
+        (immutable
+          ? "ingestron.immutable-file-landing/v1"
+          : publishing
+            ? "ingestron.snapshot-landing/v1"
+            : "ingestron.snapshot-publication/v1") &&
         location.completion ===
-          (publishing
+          (publishing || immutable
             ? "requires-successful-adf-run"
             : "requires-publication-receipt"),
       "Incompatible snapshot completion protocol",
@@ -285,8 +358,9 @@ export function model(request: any) {
     node.source = {
       binding: location.binding,
       path: location.name,
-      format: "parquet",
-      ...(!publishing
+      format: location.format,
+      ...(immutable ? { reader: location.reader } : {}),
+      ...(!publishing && !immutable
         ? {
             deliveryIndex: location.deliveryIndex,
             // The published index names the upstream dataset; check that name.
@@ -299,6 +373,10 @@ export function model(request: any) {
     if (publishing) settings.dataset = location.dataset;
   }
   if (node.uses.startsWith("snapshot-publish")) {
+    check(
+      !request.flowContext?.schedule,
+      "Publication scheduling requires its own bounded job preparation",
+    );
     const root = node.runtime.options.publication?.workspaceRoot;
     if (root) claim("workspace-root", root);
     claim("job", `${request.project}_${node.flow}_${node.table}`);
@@ -323,6 +401,19 @@ export function model(request: any) {
       targets: [],
       resources,
     };
+  }
+  if (request.flowContext?.schedule) {
+    check(
+      !node.uses.startsWith("snapshot-publish"),
+      "Publication scheduling requires its own bounded job preparation",
+    );
+    for (const job of scheduledJobNames(
+      request.project,
+      request.environment,
+      node.flow,
+      request.flowContext.schedule,
+    ))
+      claim("job", job.name);
   }
   const deployment = node.runtime.options.deployment ?? {},
     alias = settings.pipeline ?? settings.pipelineId;
@@ -386,6 +477,9 @@ export function model(request: any) {
           (c.physicalName ?? c.name) !== settings.operationColumn &&
           !settings.sequenceBy?.includes(c.physicalName ?? c.name),
       );
+  // The source mapping has already been applied by native ingestion.
+  for (const property of publishedContract.schema[0].properties)
+    delete property.physicalName;
   if (settings.target.historySchema) {
     const history = structuredClone(publishedContract);
     const sequence = settings.sequenceBy?.[0];

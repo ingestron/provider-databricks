@@ -17,4 +17,6 @@ Ingestron. Native Lakeflow SQL acceptance remains a separate platform test.
 
 Snapshot history uses a documented Python notebook because the native snapshot API
 requires Python. SQL definitions are preferred for append/change ingestion and
-materialised views. No Ingestron Python package is generated or installed.
+SQL materialised views. The private candidate also supports
+[literal Python transformation functions](python-transformations.md).
+No Ingestron Python package is generated or installed.

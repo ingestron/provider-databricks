@@ -89,6 +89,10 @@ function source(n) {
   return { container: match[1], account: match[2], prefix: match[3] };
 }
 export function validatePublication(plan) {
+  check(
+    !(plan.flows ?? []).some((flow) => flow.schedule),
+    "Publication scheduling requires its own bounded job preparation",
+  );
   check(plan.nodes.length > 0, "Publication export requires nodes");
   const settings = plan.nodes[0].runtime.options;
   strict(settings, ["publication"], "provider");

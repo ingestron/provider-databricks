@@ -1,10 +1,8 @@
 apiVersion: ingestron.project/v1
 id: retail
+packages:
+  provider: ingestron/provider-databricks/plugin/provider.yaml@3.7.0
 providers:
-  packages:
-    provider:
-      source: databricks
-      version: 2.1.0
   configurations:
     engineering:
       package: provider
